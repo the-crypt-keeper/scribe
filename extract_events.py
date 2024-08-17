@@ -10,19 +10,21 @@ from urllib.parse import urlparse
 SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert it to a JSON object with the following schema:
 
 {
-    'events': [
+    "events": [
         {
-            'year_range': [start_year, end_year],
-            'title': <event title>,
-            'summary': <brief summary of event>,
-            'significance': LOCAL | REGIONAL | GLOBAL,
-            'historic_importance': MINOR | MAJOR | CRITICAL
+            "year_range": [start_year, end_year],
+            "title": "<event title>",
+            "summary": "<brief summary of event>",
+            "significance": "LOCAL | REGIONAL | GLOBAL",
+            "historic_importance": "MINOR | MAJOR | CRITICAL"
         },
         {
             ...
         }
     ]
-}"""
+}
+
+Make sure all strings are quoted."""
 
 API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
@@ -42,14 +44,21 @@ def get_llm_response(text):
             response_format=RESPONSE_FORMAT
         )
         result = response.choices[0].message.content
-        result = result[result.find('{'):result.rfind('}')+1]
         
     except Exception as e:
         print(f"Error in LLM call: {e}")
         return []
-    
-    print(result)
-    return result
+
+    result = result[result.find('{'):result.rfind('}')+1]
+    events = []
+    try:
+        data = json.loads(result)
+        events = data.get(list(data.keys())[0])
+    except Exception as e:
+        print(result)
+        print(e)
+        
+    return events
 
 def save_section_as_json(url, section):
     # Get the filename using get_json_filename function
@@ -135,12 +144,18 @@ for url in wikipedia_urls:
             print(f"File {filename} already exists. Skipping processing.")
             continue
         
-        print(f"\nSection {i}:")
-        print(section['plain'][:200] + "..." if len(section['plain']) > 200 else section['plain'])
+        print(f"\nSection {i}: {section['title']}")
+        #print(section['plain'][:200] + "..." if len(section['plain']) > 200 else section['plain'])
         
         # Make LiteLLM completions call
         section['timeline'] = get_llm_response(section['plain'])
+        if len(section['timeline']) == 0:
+            print('Something went wrong! Not saving.')
+            continue
+        
         print(f"Timeline entries: {len(section['timeline'])}")
+        for entry in section['timeline']:
+            print(json.dumps(entry))
         
         # Save the section object as JSON
         save_section_as_json(url, section)
