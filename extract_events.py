@@ -25,7 +25,8 @@ SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert 
 
 API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
-MODEL = "openai/gpt-4o-mini-2024-07-18"
+MODEL = "openai/hermes-3-llama-3.1-405b-fp8"
+RESPONSE_FORMAT = None #{"type": "json_object"}
 
 def get_llm_response(text):
     try:
@@ -37,7 +38,7 @@ def get_llm_response(text):
             ],
             api_base=API_BASE_URL,
             api_key=API_KEY,
-            response_format={"type": "json_object"}
+            response_format=RESPONSE_FORMAT
         )
         result = response.choices[0].message.content
         result = result[result.find('{'):result.rfind('}')+1]
