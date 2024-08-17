@@ -41,6 +41,7 @@ def get_llm_response(text):
             ],
             api_base=API_BASE_URL,
             api_key=API_KEY,
+            max_tokens=4095,
             response_format=RESPONSE_FORMAT
         )
         result = response.choices[0].message.content
