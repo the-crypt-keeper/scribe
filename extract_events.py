@@ -4,6 +4,7 @@ import mwparserfromhell
 import litellm
 import json
 import os
+import re
 from urllib.parse import urlparse
 
 SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert it to a JSON object with the following schema:
@@ -56,14 +57,20 @@ def save_section_as_json(url, section_index, section):
     directory = parsed_url.path.split('/')[-1]
     os.makedirs(directory, exist_ok=True)
 
-    # Create a filename based on the section index
-    filename = f"{directory}/section_{section_index}.json"
+    # Create a filename based on the section title
+    safe_title = re.sub(r'[^a-zA-Z0-9]', '_', section['title'])
+    filename = f"{directory}/{safe_title}.json"
+
+    # Check if the file already exists
+    if os.path.exists(filename):
+        print(f"File {filename} already exists. Skipping processing.")
+        return
 
     # Save the section object as JSON
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(section, f, ensure_ascii=False, indent=2)
 
-    print(f"Saved section {section_index} to {filename}")
+    print(f"Saved section '{section['title']}' to {filename}")
 
 def get_mediawiki_content(url):
     # Convert URL to API URL
