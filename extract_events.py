@@ -51,7 +51,7 @@ def get_llm_response(text):
     print(result)
     return result
 
-def save_section_as_json(url, section_index, section):
+def save_section_as_json(url, section):
     # Create a directory for the URL if it doesn't exist
     parsed_url = urlparse(url)
     directory = parsed_url.path.split('/')[-1]
@@ -61,16 +61,17 @@ def save_section_as_json(url, section_index, section):
     safe_title = re.sub(r'[^a-zA-Z0-9]', '_', section['title'])
     filename = f"{directory}/{safe_title}.json"
 
-    # Check if the file already exists
-    if os.path.exists(filename):
-        print(f"File {filename} already exists. Skipping processing.")
-        return
-
     # Save the section object as JSON
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(section, f, ensure_ascii=False, indent=2)
 
     print(f"Saved section '{section['title']}' to {filename}")
+
+def get_json_filename(url, section):
+    parsed_url = urlparse(url)
+    directory = parsed_url.path.split('/')[-1]
+    safe_title = re.sub(r'[^a-zA-Z0-9]', '_', section['title'])
+    return f"{directory}/{safe_title}.json"
 
 def get_mediawiki_content(url):
     # Convert URL to API URL
@@ -131,6 +132,12 @@ for url in wikipedia_urls:
     
     print(f"Found {len(sections_with_years)} sections containing years:")
     for i, section in enumerate(sections_with_years, 1):
+        filename = get_json_filename(url, section)
+        
+        if os.path.exists(filename):
+            print(f"File {filename} already exists. Skipping processing.")
+            continue
+        
         print(f"\nSection {i}:")
         print(section['plain'][:200] + "..." if len(section['plain']) > 200 else section['plain'])
         
@@ -139,6 +146,6 @@ for url in wikipedia_urls:
         print(f"Timeline entries: {len(section['timeline'])}")
         
         # Save the section object as JSON
-        save_section_as_json(url, i, section)
+        save_section_as_json(url, section)
     
     print("\n" + "="*50 + "\n")
