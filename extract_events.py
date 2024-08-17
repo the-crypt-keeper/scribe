@@ -52,14 +52,11 @@ def get_llm_response(text):
     return result
 
 def save_section_as_json(url, section):
-    # Create a directory for the URL if it doesn't exist
-    parsed_url = urlparse(url)
-    directory = parsed_url.path.split('/')[-1]
-    os.makedirs(directory, exist_ok=True)
+    # Get the filename using get_json_filename function
+    filename = get_json_filename(url, section)
 
-    # Create a filename based on the section title
-    safe_title = re.sub(r'[^a-zA-Z0-9]', '_', section['title'])
-    filename = f"{directory}/{safe_title}.json"
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     # Save the section object as JSON
     with open(filename, 'w', encoding='utf-8') as f:
