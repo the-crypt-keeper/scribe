@@ -5,14 +5,21 @@ import litellm
 import json
 import os
 
-SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert it to a JSON list where each entry has the following schema:
+SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert it to a JSON object with the following schema:
 
 {
-  'year_range': [start_year, end_year],
-  'title': <event title>,
-  'summary': <brief summary of event>,
-  'significance': LOCAL | REGIONAL | GLOBAL,
-  'historic_importance': MINOR | MAJOR | CRITICAL
+    'events': [
+        {
+            'year_range': [start_year, end_year],
+            'title': <event title>,
+            'summary': <brief summary of event>,
+            'significance': LOCAL | REGIONAL | GLOBAL,
+            'historic_importance': MINOR | MAJOR | CRITICAL
+        },
+        {
+            ...
+        }
+    ]
 }"""
 
 API_BASE_URL = "http://100.109.96.89:3333/v1"
@@ -32,6 +39,8 @@ def get_llm_response(text):
             response_format={"type": "json_object"}
         )
         result = response.choices[0].message.content
+        result = result[result.find('{'):result.rfind('}')+1]
+        
     except Exception as e:
         print(f"Error in LLM call: {e}")
         return []
