@@ -42,24 +42,31 @@ def get_llm_response(text):
             api_base=API_BASE_URL,
             api_key=API_KEY,
             max_tokens=4095,
-            response_format=RESPONSE_FORMAT
+            response_format=RESPONSE_FORMAT,
+            stream=True
         )
-        result = response.choices[0].message.content
+        
+        full_response = ""
+        for chunk in response:
+            if chunk.choices[0].delta.content is not None:
+                content = chunk.choices[0].delta.content
+                full_response += content
+                yield content
+        
+        result = full_response[full_response.find('{'):full_response.rfind('}')+1]
+        events = []
+        try:
+            data = json.loads(result)
+            events = data.get(list(data.keys())[0])
+        except Exception as e:
+            print(result)
+            print(e)
+        
+        yield events
         
     except Exception as e:
         print(f"Error in LLM call: {e}")
-        return []
-
-    result = result[result.find('{'):result.rfind('}')+1]
-    events = []
-    try:
-        data = json.loads(result)
-        events = data.get(list(data.keys())[0])
-    except Exception as e:
-        print(result)
-        print(e)
-        
-    return events
+        yield []
 
 def save_section_as_json(url, section):
     # Get the filename using get_json_filename function
@@ -149,12 +156,19 @@ for url in wikipedia_urls:
         #print(section['plain'][:200] + "..." if len(section['plain']) > 200 else section['plain'])
         
         # Make LiteLLM completions call
-        section['timeline'] = get_llm_response(section['plain'])
+        print("LLM Response:")
+        for chunk in get_llm_response(section['plain']):
+            if isinstance(chunk, str):
+                print(chunk, end='', flush=True)
+            else:
+                section['timeline'] = chunk
+        print()  # New line after streaming is complete
+        
         if len(section['timeline']) == 0:
             print('Something went wrong! Not saving.')
             continue
         
-        print(f"Timeline entries: {len(section['timeline'])}")
+        print(f"\nTimeline entries: {len(section['timeline'])}")
         for entry in section['timeline']:
             print(json.dumps(entry))
         
