@@ -4,6 +4,7 @@ import mwparserfromhell
 import litellm
 import json
 import os
+from urllib.parse import urlparse
 
 SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert it to a JSON object with the following schema:
 
@@ -47,6 +48,21 @@ def get_llm_response(text):
     
     print(result)
     return result
+
+def save_section_as_json(url, section_index, section):
+    # Create a directory for the URL if it doesn't exist
+    parsed_url = urlparse(url)
+    directory = parsed_url.path.split('/')[-1]
+    os.makedirs(directory, exist_ok=True)
+
+    # Create a filename based on the section index
+    filename = f"{directory}/section_{section_index}.json"
+
+    # Save the section object as JSON
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(section, f, ensure_ascii=False, indent=2)
+
+    print(f"Saved section {section_index} to {filename}")
 
 def get_mediawiki_content(url):
     # Convert URL to API URL
@@ -113,5 +129,8 @@ for url in wikipedia_urls:
         # Make LiteLLM completions call
         section['timeline'] = get_llm_response(section['plain'])
         print(f"Timeline entries: {len(section['timeline'])}")
+        
+        # Save the section object as JSON
+        save_section_as_json(url, i, section)
     
     print("\n" + "="*50 + "\n")
