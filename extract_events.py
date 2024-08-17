@@ -28,15 +28,15 @@ def get_llm_response(text):
                 {"role": "user", "content": text}
             ],
             api_base=API_BASE_URL,
-            api_key=API_KEY
+            api_key=API_KEY,
+            response_format={"type": "json_object"}
         )
-        answer = response.choices[0].message.content
+        result = response.choices[0].message.content
     except Exception as e:
         print(f"Error in LLM call: {e}")
         return []
     
-    print(answer)
-    result =  json.loads(answer)
+    print(result)
     return result
 
 def get_mediawiki_content(url):
