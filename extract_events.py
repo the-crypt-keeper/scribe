@@ -3,6 +3,7 @@ import re
 import mwparserfromhell
 import litellm
 import json
+import os
 
 SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert it to a JSON list where each entry has the following schema:
 
@@ -14,8 +15,9 @@ SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert 
   'historic_importance': MINOR | MAJOR | CRITICAL
 }"""
 
-API_BASE_URL = "http://100.109.96.89:3333/"
-MODEL = "hermes-3-llama-3.1-405b-fp8"
+API_BASE_URL = "http://100.109.96.89:3333/v1"
+API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
+MODEL = "openai/gpt-4o-mini-2024-07-18"
 
 def get_llm_response(text):
     try:
@@ -25,12 +27,17 @@ def get_llm_response(text):
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": text}
             ],
-            api_base=API_BASE_URL
+            api_base=API_BASE_URL,
+            api_key=API_KEY
         )
-        return json.loads(response.choices[0].message.content)
+        answer = response.choices[0].message.content
     except Exception as e:
         print(f"Error in LLM call: {e}")
         return []
+    
+    print(answer)
+    result =  json.loads(answer)
+    return result
 
 def get_mediawiki_content(url):
     # Convert URL to API URL
