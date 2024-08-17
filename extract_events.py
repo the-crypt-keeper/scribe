@@ -2,6 +2,7 @@ import requests
 import re
 import mwparserfromhell
 import litellm
+import json
 
 SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert it to a JSON list where each entry has the following schema:
 
@@ -15,6 +16,21 @@ SYSTEM_PROMPT = """The user will provide a timeline of historic events. Convert 
 
 API_BASE_URL = "http://100.109.96.89:3333/"
 MODEL = "hermes-3-llama-3.1-405b-fp8"
+
+def get_llm_response(text):
+    try:
+        response = litellm.completion(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": text}
+            ],
+            api_base=API_BASE_URL
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f"Error in LLM call: {e}")
+        return []
 
 def get_mediawiki_content(url):
     # Convert URL to API URL
@@ -76,6 +92,10 @@ for url in wikipedia_urls:
     print(f"Found {len(sections_with_years)} sections containing years:")
     for i, section in enumerate(sections_with_years, 1):
         print(f"\nSection {i}:")
-        print(section[:200] + "..." if len(section) > 200 else section)
+        print(section['plain'][:200] + "..." if len(section['plain']) > 200 else section['plain'])
+        
+        # Make LiteLLM completions call
+        section['timeline'] = get_llm_response(section['plain'])
+        print(f"Timeline entries: {len(section['timeline'])}")
     
     print("\n" + "="*50 + "\n")
