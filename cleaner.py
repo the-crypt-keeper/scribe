@@ -23,10 +23,8 @@ SYSTEM_PROMPT = "Convert the following text provided by the user into a list of 
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 MODEL = 'openai/Mistral-7B-Instruct-v0.3-GPTQ-4bit'
-NUM_PARALLEL = 4  # Default number of parallel threads
-
-schema = WorldList.model_json_schema()
-
+NUM_PARALLEL = 4
+SCHEMA = WorldList.model_json_schema()
 
 def process_prompt(data, text_key):
     if 'clean' in data:
@@ -35,7 +33,7 @@ def process_prompt(data, text_key):
     user_text = data.get(text_key, '')
     messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(text=user_text)}]    
     sampler = { 'temperature': 0.0, 'max_tokens': 3072 }
-    sampler['guided_json'] = schema
+    sampler['guided_json'] = SCHEMA
     
     try:
         answer = get_llm_response(messages, MODEL, **sampler)

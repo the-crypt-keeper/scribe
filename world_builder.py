@@ -124,6 +124,13 @@ SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 MODEL = sys.argv[1]
 NUM_ITERATIONS = 5
 NUM_PARALLEL = 4  # Default number of parallel threads
+SAMPLER = {
+    'temperature': 1.0,
+    'min_p': 0.05,
+    'repetition_penalty': 1.1,
+    'max_tokens': 3072,
+    'min_tokens': 10 
+}
 
 def generate_prompts():
     prompts = []
@@ -136,14 +143,7 @@ def generate_prompts():
 
 def process_prompt(args):
     method, random_words, messages = args
-    sampler = {
-        'temperature': 1.0,
-        'min_p': 0.05,
-        'repetition_penalty': 1.1,
-        'max_tokens': 3072,
-        'min_tokens': 10 
-    }
-    answer = get_llm_response(messages, MODEL, n=1, **sampler)
+    answer = get_llm_response(messages, MODEL, **SAMPLER)
     idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
     return [idea]
 

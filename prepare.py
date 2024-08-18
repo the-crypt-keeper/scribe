@@ -1,4 +1,5 @@
 import json
+import sys
 from typing import List, Dict
 from pydantic import BaseModel, Field
 
@@ -32,11 +33,11 @@ def read_and_process_file(input_filename: str) -> PreparedData:
 
 def write_output(prepared_data: PreparedData, output_filename: str):
     with open(output_filename, 'w') as f:
-        json.dump(prepared_data.dict(), f, indent=2)
+        json.dump(prepared_data.model_dump(), f, indent=2)
 
 def main():
-    input_filename = 'path/to/cleaner_output.json'  # Replace with actual path
-    output_filename = 'prepared_data.json'
+    input_filename = sys.argv[1]
+    output_filename = 'prepare.json'
 
     prepared_data = read_and_process_file(input_filename)
     write_output(prepared_data, output_filename)
