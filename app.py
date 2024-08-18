@@ -47,8 +47,11 @@ def main():
     merged_df.insert(0, 'Select', False)
 
     # Display the merged DataFrame with checkboxes
+    # Exclude 'idea_id' from the displayed columns
+    display_columns = [col for col in merged_df.columns if col != 'idea_id']
+    
     edited_df = st.data_editor(
-        merged_df,
+        merged_df[display_columns],
         height=int(st.get_option('deprecation.showPyplotGlobalUse') * 0.5),
         use_container_width=True,
         hide_index=True,
@@ -57,14 +60,9 @@ def main():
                 "Select",
                 help="Select this row",
                 default=False,
-            ),
-            "idea_id": st.column_config.Column(
-                "ID",
-                disabled=True,
-                hidden=True,
             )
         },
-        disabled=merged_df.columns.drop('Select').tolist(),
+        disabled=merged_df.columns.drop(['Select', 'idea_id']).tolist(),
     )
 
     # Get the selected row
