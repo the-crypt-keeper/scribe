@@ -6,6 +6,8 @@ import re
 import random
 from urllib.parse import urlparse
 from jinja2 import Template
+import nltk
+from nltk.corpus import words
 
 TECHNIQUES = [
   {
@@ -90,13 +92,19 @@ TECHNIQUES = [
   }
 ]
 
+def load_dictionary_and_get_random_words(num_words=5):
+    nltk.download('words', quiet=True)
+    word_list = words.words()
+    return random.sample(word_list, num_words)
+
 SYSTEM_PROMPT = """Let's do some creative brainstorming with the {{title}} technique. {{summary}}
+Use these random words for inspiration: {{random_words}}
 Return a markdown list of 3 example worlds created with this technique.
 Provide the following details for each world:
 
 - Concept: Explain how the technique was applied to produce this idea
 - World Name: What is this world called
-- Description: Describe the world and it's inhabitants.
+- Description: Describe the world and its inhabitants.
 - Twist: A deeper, hidden meaning or creative twist underlying this world.
 """
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
@@ -161,14 +169,16 @@ def main():
     outf = open(output_filename, 'a')
 
     for method in TECHNIQUES:
-        messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(**method)}]
-        print('>>>',method['title'])
+        print('>>>', method['title'])
         ideas = []
         for iter in range(NUM_ITERATIONS):
+            random_words = load_dictionary_and_get_random_words()
+            method_with_words = {**method, 'random_words': ', '.join(random_words)}
+            messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(**method_with_words)}]
             for completion in get_llm_response(messages, n=NUM_COMPLETIONS, stream=False, seed=random.randint(0, 65535)):
                 for answer in completion:
                     print(answer)                    
-                    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL}
+                    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
                     ideas.append(idea)
                     outf.write(json.dumps(idea)+'\n')
                     print('--')
