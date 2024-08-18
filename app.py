@@ -96,8 +96,8 @@ def main():
         disabled=merged_df.columns.drop(['Select']).tolist(),
     )
 
-    # Get the selected row
-    selected_row = edited_df[edited_df['Select']].iloc[0] if not edited_df[edited_df['Select']].empty else None
+    # Get the selected row from the original merged_df
+    selected_row = merged_df[edited_df['Select']].iloc[0] if not edited_df[edited_df['Select']].empty else None
 
     # Display selected record details
     if selected_row is not None:
@@ -106,7 +106,7 @@ def main():
         
         with col1:
             st.subheader("Prepared Data")
-            selected_row_dict = selected_row.drop('Select').to_dict()
+            selected_row_dict = selected_row.drop(['Select', 'id']).to_dict()
             st.json(selected_row_dict)
         
         with col2:
