@@ -64,8 +64,8 @@ def main():
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
 
     # Display the merged DataFrame with checkboxes
-    # Exclude 'idea_id' and 'description' from the displayed columns
-    display_columns = [col for col in merged_df.columns if col not in ['id', 'idea_id', 'description']]
+    # Hide 'id' and 'description' columns
+    display_columns = [col for col in merged_df.columns if col not in ['id', 'description']]
     
     edited_df = st.data_editor(
         merged_df[display_columns],
@@ -86,6 +86,11 @@ def main():
             "twist": st.column_config.TextColumn(
                 "Twist",
                 width="large",
+            ),
+            "idea_id": st.column_config.Column(
+                "Idea ID",
+                width="small",
+                required=True,
             ),
         },
         disabled=merged_df.columns.drop(['Select']).tolist(),
