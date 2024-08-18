@@ -39,16 +39,33 @@ def main():
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
 
-    # Display the merged DataFrame
-    res = st.dataframe(merged_df, height=int(st.get_option('deprecation.showPyplotGlobalUse') * 0.5), use_container_width=True)
+    # Add a checkbox column
+    merged_df['Select'] = False
 
-    # Add row selection functionality
-    print(res)
-    selected_indices = res.selected_rows()
-    if selected_indices:
-        selected_row = merged_df.iloc[selected_indices[0]]
+    # Display the merged DataFrame with checkboxes
+    edited_df = st.data_editor(
+        merged_df,
+        height=int(st.get_option('deprecation.showPyplotGlobalUse') * 0.5),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Select": st.column_config.CheckboxColumn(
+                "Select",
+                help="Select this row",
+                default=False,
+            )
+        },
+        disabled=merged_df.columns.drop('Select').tolist(),
+    )
+
+    # Get the selected row
+    selected_row = edited_df[edited_df['Select']].iloc[0] if not edited_df[edited_df['Select']].empty else None
+
+    # Display selected record details
+    if selected_row is not None:
         st.subheader("Selected Record Details:")
-        st.json(selected_row.to_dict())
+        selected_row_dict = selected_row.drop('Select').to_dict()
+        st.json(selected_row_dict)
 
 if __name__ == "__main__":
     main()
