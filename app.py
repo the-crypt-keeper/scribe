@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import json
 import sys
 import sqlite3
@@ -98,23 +99,25 @@ def main():
     # Get all ratings and apply them to the dataframe
     all_ratings = get_all_ratings(get_conn)
     merged_df['rating'] = merged_df['id'].map(all_ratings)
+    merged_df['rating'] = merged_df['rating'].replace(np.nan, None)
 
     # Display the merged DataFrame using AgGrid
     gb = GridOptionsBuilder.from_dataframe(merged_df)
     gb.configure_selection(selection_mode='single', use_checkbox=False)
     gb.configure_column("rating",
+                        width="100",
                         header_name="Rating",
                         editable=True, 
                         cellEditor='agSelectCellEditor',
                         cellEditorParams={
-                            'values': [None] + [r.value for r in Rating]
+                            'values': ['None'] + [r.value for r in Rating]
                         },
                         singleClickEdit=True)
     gb.configure_column("concept", header_name="Concept", width="300")
     gb.configure_column("twist", header_name="Twist", width="300")
+    gb.configure_column("description", header_name="Description")
     gb.configure_column("idea_id", header_name="Idea ID", hide=True)
-    gb.configure_column("id", hide=True)
-    gb.configure_column("description", hide=True)
+    gb.configure_column("id", hide=True)    
     gridOptions = gb.build()
 
     grid_response = AgGrid(
@@ -123,8 +126,8 @@ def main():
         height=400,
         width='100%',
         data_return_mode='AS_INPUT',
+        update_mode=GridUpdateMode.MANUAL | GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.VALUE_CHANGED,
         fit_columns_on_grid_load=True,
-        update_mode=GridUpdateMode.MODEL_CHANGED,
     )
 
     selected_row = grid_response['selected_rows'][0] if grid_response['selected_rows'] else None
@@ -133,12 +136,11 @@ def main():
     if grid_response['data'] is not None:
         for index, row in grid_response['data'].iterrows():
             old_rating = merged_df.loc[index, 'rating']
-            new_rating = row['rating']
-            if new_rating is None or new_rating != new_rating: continue
+            new_rating = None if row['rating'] == 'None' else row['rating']
             if old_rating != new_rating:
                 print(f'SAVING: id={row["id"]}, old_rating={old_rating}, new_rating={new_rating}')
                 save_rating(get_conn, row['id'], new_rating)
-                merged_df.loc[index, 'rating'] = new_rating
+                #merged_df.loc[index, 'rating'] = new_rating
 
     # Display selected record details
     if selected_row:
