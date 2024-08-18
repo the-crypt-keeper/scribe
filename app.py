@@ -63,23 +63,21 @@ def main():
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
 
     # Display the merged DataFrame using AgGrid
-    # Hide 'id' and 'description' columns
-    display_columns = [col for col in merged_df.columns if col not in ['id', 'description']]
-    
-    gb = GridOptionsBuilder.from_dataframe(merged_df[display_columns])
-    gb.configure_selection(selection_mode='single', use_checkbox=True)
+    gb = GridOptionsBuilder.from_dataframe(merged_df)
+    gb.configure_selection(selection_mode='single', use_checkbox=False)
     gb.configure_column("concept", header_name="Concept", width="300")
     gb.configure_column("twist", header_name="Twist", width="300")
-    gb.configure_column("idea_id", header_name="Idea ID", width="100")
+    gb.configure_column("idea_id", header_name="Idea ID", hide=True)
+    gb.configure_column("id", hide=True)
+    gb.configure_column("description", hide=True)
     gridOptions = gb.build()
 
     grid_response = AgGrid(
-        merged_df[display_columns],
+        merged_df,
         gridOptions=gridOptions,
         height=400,
         width='100%',
         data_return_mode='AS_INPUT',
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
         fit_columns_on_grid_load=True,
     )
 
