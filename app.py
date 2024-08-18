@@ -1,41 +1,10 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import json
 import sys
-import sqlite3
-from enum import Enum
 from typing import List, Dict
 from st_aggrid import AgGrid, GridUpdateMode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
-
-class Rating(Enum):
-    BROKEN = "BROKEN"
-    BAD = "BAD"
-    GOOD = "GOOD"
-    EXCELLENT = "EXCELLENT"
-
-def init_db():
-    def get_conn():
-        conn = sqlite3.connect('world_ratings.db', check_same_thread=False)
-        conn.execute('''CREATE TABLE IF NOT EXISTS ratings
-                        (id TEXT PRIMARY KEY, rating TEXT)''')
-        conn.commit()
-        return conn
-    return get_conn
-
-def get_all_ratings(get_conn):
-    with get_conn() as conn:
-        c = conn.cursor()
-        c.execute("SELECT id, rating FROM ratings")
-        return dict(c.fetchall())
-
-def save_rating(get_conn, world_id, rating):
-    with get_conn() as conn:
-        c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO ratings (id, rating) VALUES (?, ?)",
-                  (str(world_id), rating))
-        conn.commit()
 
 @st.cache_resource
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -90,16 +59,8 @@ def main():
     cleaner_data = load_cleaner_data(cleaner_path)
     prepare_data = load_prepare_data(prepare_path)
 
-    # Initialize database
-    get_conn = init_db()
-
     # Create and cache the merged dataframe
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
-
-    # Get all ratings and apply them to the dataframe
-    all_ratings = get_all_ratings(get_conn)
-    merged_df['rating'] = merged_df['id'].map(all_ratings)
-    merged_df['rating'] = merged_df['rating'].replace(np.nan, None)
 
     # Display the merged DataFrame using AgGrid
     gb = GridOptionsBuilder.from_dataframe(merged_df)
