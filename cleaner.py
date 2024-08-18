@@ -11,15 +11,15 @@ from tqdm import tqdm
 from pydantic import BaseModel, Field
 
 class World(BaseModel):
-    concept: str
-    world_name: str
-    description: str
-    twist: str
+    world_name: str = Field(description='The World Name')
+    concept: str = Field(description='The way in which the concept was applied to create this world')
+    description: str = Field(description = 'Description of the world')
+    twist: str = Field(description = 'Unique Twist that makes this world interesting')
     
 class WorldList(BaseModel):
     worlds: list[World]
 
-SYSTEM_PROMPT = "Convert the following text provided by the user into JSON:\n{{text}}"
+SYSTEM_PROMPT = "Convert the following text provided by the user into a list of JSON objects with the keys { world_name, concept, description, twist }:\n\n{{text}}"
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 MODEL = 'openai/Mistral-7B-Instruct-v0.3-GPTQ-4bit'
@@ -39,16 +39,17 @@ def generate_prompts(input_file, key_name):
 
 def process_prompt(user_text):
     messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(text=user_text)}]    
-    sampler = {
-        'temperature': 1.0,
-        'min_p': 0.05,
-        'repetition_penalty': 1.1
-    }
+    sampler = { 'temperature': 0.0 }
     sampler['guided_json'] = schema
     
     ideas = []
     answer = get_llm_response(messages, MODEL, seed=random.randint(0, 65535), **sampler)
-    idea = {'timestamp': time.time(), 'result': json.loads(answer), 'user_text': user_text, 'model': MODEL}
+    
+    try:
+        answer = json.loads(answer)
+    except:
+        pass
+    idea = {'timestamp': time.time(), 'result': answer, 'user_text': user_text, 'model': MODEL}
     ideas.append(idea)
     return ideas
 
