@@ -131,6 +131,7 @@ def main():
         for index, row in grid_response['data'].iterrows():
             old_rating = merged_df.loc[index, 'rating']
             new_rating = row['rating']
+            if new_rating is None: continue
             if old_rating != new_rating:
                 print(f'SAVING: id={row["id"]}, old_rating={old_rating}, new_rating={new_rating}')
                 save_rating(conn, row['id'], new_rating)
