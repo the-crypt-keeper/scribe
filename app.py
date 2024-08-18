@@ -99,7 +99,9 @@ def main():
     # Display the merged DataFrame using AgGrid
     gb = GridOptionsBuilder.from_dataframe(merged_df)
     gb.configure_selection(selection_mode='single', use_checkbox=False)
-    gb.configure_column("rating", header_name="Rating", editable=True, 
+    gb.configure_column("rating",
+                        header_name="Rating",
+                        editable=True, 
                         cellEditor='agSelectCellEditor',
                         cellEditorParams={
                             'values': [None] + [r.value for r in Rating]
@@ -125,9 +127,10 @@ def main():
 
     # Save rating if changed
     if grid_response['data'] is not None:
-        for row in grid_response['data']:
-            if row['rating'] != get_rating(conn, row['id']):
-                save_rating(conn, row['id'], row['rating'])
+        for index, row in grid_response['data'].iterrows():
+            if row['rating'] != row['rating']: continue
+            print('SAVING', row)
+            save_rating(conn, row['id'], row['rating'])
 
     # Display selected record details
     if selected_row:
