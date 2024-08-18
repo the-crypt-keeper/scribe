@@ -1,7 +1,5 @@
 import time
-import litellm
-import json
-import os
+from utils import get_llm_response
 import re
 import random
 import sys
@@ -122,8 +120,6 @@ Consider the following details for each world:
 Return 3 example worlds created with this technique."""
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
-API_BASE_URL = "http://100.109.96.89:3333/v1"
-API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
 MODEL = sys.argv[1]
 NUM_ITERATIONS = 5
 NUM_PARALLEL = 4  # Default number of parallel threads
@@ -134,51 +130,6 @@ def get_output_filename(model):
     # Replace any non-alphanumeric characters with underscores
     safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
     return f"ideas_{safe_model_name}.json"
-
-def get_llm_response(messages, n = 1, max_tokens = 3072, stream = True, decode_json = False, **params):
-    try:
-        response = litellm.completion(
-            model=MODEL,
-            n=n,
-            messages=messages,
-            api_base=API_BASE_URL,
-            api_key=API_KEY,
-            max_tokens=max_tokens,
-            min_tokens=8,
-            stream=stream,
-            **params
-        )
-
-        full_response = ""
-        if stream:
-            for chunk in response:
-                if chunk.choices[0].delta.content is not None:
-                    content = chunk.choices[0].delta.content
-                    full_response += content
-                    print(content, end='', flush=True)
-            full_response = [full_response]
-        else:
-            full_response = [x.message.content for x in response.choices]
-            
-        if decode_json:
-            full_response = full_response[0]
-            result = full_response[full_response.find('{'):full_response.rfind('}')+1]
-            events = []
-            try:
-                data = json.loads(result)
-                events = data.get(list(data.keys())[0])
-            except Exception as e:
-                print(result)
-                print(e)
-        else:
-            events = full_response
-            
-        print()  # New line after streaming is complete
-        yield events
-        
-    except Exception as e:
-        print(f"Error in LLM call: {e}")
-        yield []
 
 def generate_prompts():
     prompts = []
@@ -197,7 +148,7 @@ def process_prompt(args):
         'repetition_penalty': 1.1
     }
     ideas = []
-    for completion in get_llm_response(messages, n=1, stream=False, seed=random.randint(0, 65535), **sampler):
+    for completion in get_llm_response(messages, MODEL, n=1, stream=False, seed=random.randint(0, 65535), **sampler):
         for answer in completion:
             idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
             ideas.append(idea)
