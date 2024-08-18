@@ -8,6 +8,8 @@ import sys
 from jinja2 import Template
 import nltk
 from nltk.corpus import words, brown
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 TECHNIQUES = [
   {
@@ -124,6 +126,7 @@ API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
 MODEL = sys.argv[1]
 NUM_ITERATIONS = 5
+NUM_PARALLEL = 4  # Default number of parallel threads
 
 def get_output_filename(model):
     # Extract the model name after the last '/'
@@ -176,29 +179,45 @@ def get_llm_response(messages, n = 1, max_tokens = 3072, stream = True, decode_j
         print(f"Error in LLM call: {e}")
         yield []
 
-def main():
-    output_filename = get_output_filename(MODEL)
-    outf = open(output_filename, 'a')
+def generate_prompts():
+    prompts = []
+    for method in TECHNIQUES:
+        for _ in range(NUM_ITERATIONS):
+            random_words = get_random_words()
+            messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(random_words=', '.join(random_words), **method)}]
+            prompts.append((method, random_words, messages))
+    return prompts
+
+def process_prompt(args):
+    method, random_words, messages = args
     sampler = {
         'temperature': 1.0,
         'min_p': 0.05,
-        'repetition_penalty' : 1.1
+        'repetition_penalty': 1.1
     }
+    ideas = []
+    for completion in get_llm_response(messages, n=1, stream=False, seed=random.randint(0, 65535), **sampler):
+        for answer in completion:
+            idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
+            ideas.append(idea)
+    return ideas
 
-    for method in TECHNIQUES:
-        print('>>>', method['title'])
-        ideas = []
-        for iter in range(NUM_ITERATIONS):
-            random_words = get_random_words()
-            print(random_words)
-            messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(random_words=', '.join(random_words), **method)}]
-            for completion in get_llm_response(messages, n=1, stream=False, seed=random.randint(0, 65535), **sampler):
-                for answer in completion:
-                    print(answer)                    
-                    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
-                    ideas.append(idea)
-                    outf.write(json.dumps(idea)+'\n')
-                    print('--')
+def main():
+    output_filename = get_output_filename(MODEL)
+    outf = open(output_filename, 'a')
+
+    prompts = generate_prompts()
+    total_prompts = len(prompts)
+
+    with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
+        futures = [executor.submit(process_prompt, prompt) for prompt in prompts]
+        
+        with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
+            for future in as_completed(futures):
+                ideas = future.result()
+                for idea in ideas:
+                    outf.write(json.dumps(idea) + '\n')
+                pbar.update(1)
 
     outf.close()
 
