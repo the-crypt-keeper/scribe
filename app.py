@@ -9,7 +9,7 @@ def create_merged_dataframe(cleaner_data, prepare_data):
     # Extract relevant information from cleaner data
     cleaner_info = [{
         'idea_id': i + 1,
-        'model': item.get('model', ''),
+        'model': item.get('model', '').replace('openai/', ''),
         'method': item.get('method', ''),
     } for i, item in enumerate(cleaner_data)]
 
