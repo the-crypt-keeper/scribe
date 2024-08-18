@@ -104,15 +104,6 @@ def main():
     # Display the merged DataFrame using AgGrid
     gb = GridOptionsBuilder.from_dataframe(merged_df)
     gb.configure_selection(selection_mode='single', use_checkbox=False)
-    gb.configure_column("rating",
-                        width="100",
-                        header_name="Rating",
-                        editable=True, 
-                        cellEditor='agSelectCellEditor',
-                        cellEditorParams={
-                            'values': ['None'] + [r.value for r in Rating]
-                        },
-                        singleClickEdit=True)
     gb.configure_column("concept", header_name="Concept", width="300")
     gb.configure_column("twist", header_name="Twist", width="300")
     gb.configure_column("description", header_name="Description")
@@ -126,39 +117,21 @@ def main():
         height=400,
         width='100%',
         data_return_mode='AS_INPUT',
-        update_mode=GridUpdateMode.MANUAL | GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.VALUE_CHANGED,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
         fit_columns_on_grid_load=True,
     )
 
     selected_row = grid_response['selected_rows'][0] if grid_response['selected_rows'] else None
 
-    # Save rating if changed
-    if grid_response['data'] is not None:
-        for index, row in grid_response['data'].iterrows():
-            old_rating = merged_df.loc[index, 'rating']
-            new_rating = None if row['rating'] == 'None' else row['rating']
-            if old_rating != new_rating:
-                print(f'SAVING: id={row["id"]}, old_rating={old_rating}, new_rating={new_rating}')
-                save_rating(get_conn, row['id'], new_rating)
-                #merged_df.loc[index, 'rating'] = new_rating
-
     # Display selected record details
     if selected_row:
         st.subheader("Selected Record Details:")
-        col1, col2 = st.columns(2)
+        selected_row_dict = {k: v for k, v in selected_row.items() if k != '_selectedRowNodeInfo'}
+        st.json(selected_row_dict)
         
-        with col1:
-            st.subheader("Prepared Data")
-            selected_row_dict = {k: v for k, v in selected_row.items() if k != '_selectedRowNodeInfo'}
-            st.json(selected_row_dict)
-        
-        with col2:
-            st.subheader("Original Idea")
+        with st.expander('DEBUG: Original Ideal'):
             original_idea = get_original_idea(cleaner_data, selected_row['idea_id'])
-            if original_idea:
-                st.json(original_idea)
-            else:
-                st.write("Original idea not found.")
+            st.json(original_idea)
 
 if __name__ == "__main__":
     main()
