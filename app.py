@@ -40,7 +40,7 @@ def load_prepare_data(file_path):
         return json.load(f)
 
 def main():
-    st.set_page_config(layout="wide")
+    st.set_page_config(layout="wide", page_title='World Builder Data Viewer')
     st.markdown("""
             <style>
                 .block-container {
@@ -51,7 +51,6 @@ def main():
                 }
             </style>
             """, unsafe_allow_html=True)   
-    st.title("World Builder Data Viewer")
 
     cleaner_path = sys.argv[1]
     prepare_path = sys.argv[2]
