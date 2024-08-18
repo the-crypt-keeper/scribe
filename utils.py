@@ -1,9 +1,17 @@
 import litellm
 import json
 import os
+import re
 
 API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
+
+def get_output_filename(model, prefix):
+    # Extract the model name after the last '/'
+    model_name = model.split('/')[-1]
+    # Replace any non-alphanumeric characters with underscores
+    safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
+    return f"{prefix}_{safe_model_name}.json"
 
 def decode_json(response, first_key = True):
     result = response[response.find('{'):response.rfind('}')+1]
@@ -26,7 +34,6 @@ def get_llm_response(messages, model, n=1, max_tokens=3072, **params):
             api_key=API_KEY,
             max_tokens=max_tokens,
             min_tokens=8,
-            stream=False,
             **params
         )
 

@@ -19,7 +19,7 @@ class World(BaseModel):
 class WorldList(BaseModel):
     worlds: list[World]
 
-SYSTEM_PROMPT = "Convert the text provided by the user into JSON."
+SYSTEM_PROMPT = "Convert the following text provided by the user into JSON:\n{{text}}"
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 MODEL = 'openai/Mistral-7B-Instruct-v0.3-GPTQ-4bit'
@@ -34,15 +34,11 @@ def generate_prompts(input_file, key_name):
             data = json.loads(line)
             user_text = data.get(key_name, '')
             if user_text:
-                messages = [
-                    {'role': 'system', 'content': SYSTEM_TEMPLATE.render()},
-                    {'role': 'user', 'content': user_text}
-                ]
-                prompts.append(messages)
+                prompts.append(user_text)
     return prompts
 
-def process_prompt(args):
-    messages = args
+def process_prompt(user_text):
+    messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(text=user_text)}]    
     sampler = {
         'temperature': 1.0,
         'min_p': 0.05,
@@ -50,11 +46,9 @@ def process_prompt(args):
     }
     sampler['guided_json'] = schema
     
-    print(sampler)
-    
     ideas = []
     answer = get_llm_response(messages, MODEL, seed=random.randint(0, 65535), **sampler)
-    idea = {'timestamp': time.time(), 'result': answer, 'model': MODEL}
+    idea = {'timestamp': time.time(), 'result': json.loads(answer), 'user_text': user_text, 'model': MODEL}
     ideas.append(idea)
     return ideas
 
@@ -64,7 +58,7 @@ def run(input_file: str, key_name: str):
 
     prompts = generate_prompts(input_file, key_name)
     total_prompts = len(prompts)
-
+    
     with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
         futures = [executor.submit(process_prompt, prompt) for prompt in prompts]
         

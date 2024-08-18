@@ -1,5 +1,5 @@
 import time
-from utils import get_llm_response
+from utils import get_llm_response, get_output_filename
 import re
 import random
 import sys
@@ -125,13 +125,6 @@ MODEL = sys.argv[1]
 NUM_ITERATIONS = 5
 NUM_PARALLEL = 4  # Default number of parallel threads
 
-def get_output_filename(model):
-    # Extract the model name after the last '/'
-    model_name = model.split('/')[-1]
-    # Replace any non-alphanumeric characters with underscores
-    safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
-    return f"ideas_{safe_model_name}.json"
-
 def generate_prompts():
     prompts = []
     for method in TECHNIQUES:
@@ -149,14 +142,14 @@ def process_prompt(args):
         'repetition_penalty': 1.1
     }
     ideas = []
-    for completion in get_llm_response(messages, MODEL, n=1, stream=False, seed=random.randint(0, 65535), **sampler):
+    for completion in get_llm_response(messages, MODEL, n=1, seed=random.randint(0, 65535), **sampler):
         for answer in completion:
             idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
             ideas.append(idea)
     return ideas
 
 def main():
-    output_filename = get_output_filename(MODEL)
+    output_filename = get_output_filename(MODEL, 'ideas')
     outf = open(output_filename, 'a')
 
     prompts = generate_prompts()
