@@ -5,7 +5,18 @@ import os
 API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
 
-def get_llm_response(messages, model, n=1, max_tokens=3072, decode_json=False, **params):
+def decode_json(response):
+    result = response[response.find('{'):response.rfind('}')+1]
+    try:
+        data = json.loads(result)
+        events = data.get(list(data.keys())[0])
+        return events
+    except Exception as e:
+        print(result)
+        print(e)
+        return []
+
+def get_llm_response(messages, model, n=1, max_tokens=3072, **params):
     try:
         response = litellm.completion(
             model=model,
@@ -19,28 +30,13 @@ def get_llm_response(messages, model, n=1, max_tokens=3072, decode_json=False, *
             **params
         )
 
-        full_response = [x.message.content for x in response.choices]
-        
-        if decode_json:
-            full_response = full_response[0]
-            result = full_response[full_response.find('{'):full_response.rfind('}')+1]
-            events = []
-            try:
-                data = json.loads(result)
-                events = data.get(list(data.keys())[0])
-            except Exception as e:
-                print(result)
-                print(e)
-        else:
-            events = full_response
-        
-        return events
+        return [x.message.content for x in response.choices]
         
     except Exception as e:
         print(f"Error in LLM call: {e}")
         return []
 
-def get_llm_response_stream(messages, model, n=1, max_tokens=3072, decode_json=False, **params):
+def get_llm_response_stream(messages, model, n=1, max_tokens=3072, **params):
     try:
         response = litellm.completion(
             model=model,
@@ -63,19 +59,7 @@ def get_llm_response_stream(messages, model, n=1, max_tokens=3072, decode_json=F
         
         print()  # New line after streaming is complete
         
-        if decode_json:
-            result = full_response[full_response.find('{'):full_response.rfind('}')+1]
-            events = []
-            try:
-                data = json.loads(result)
-                events = data.get(list(data.keys())[0])
-            except Exception as e:
-                print(result)
-                print(e)
-        else:
-            events = [full_response]
-        
-        yield events
+        yield [full_response]
         
     except Exception as e:
         print(f"Error in LLM call: {e}")
