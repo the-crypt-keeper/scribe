@@ -144,6 +144,7 @@ def get_llm_response(messages, n = 1, max_tokens = 3072, stream = True, decode_j
             api_base=API_BASE_URL,
             api_key=API_KEY,
             max_tokens=max_tokens,
+            min_tokens=8,
             stream=stream,
             **params
         )
