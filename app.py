@@ -40,10 +40,11 @@ def main():
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
 
     # Display the merged DataFrame
-    st.dataframe(merged_df, height=int(st.get_option('deprecation.showPyplotGlobalUse') * 0.5), use_container_width=True)
+    res = st.dataframe(merged_df, height=int(st.get_option('deprecation.showPyplotGlobalUse') * 0.5), use_container_width=True)
 
     # Add row selection functionality
-    selected_indices = st.dataframe(merged_df).selected_rows
+    print(res)
+    selected_indices = res.selected_rows()
     if selected_indices:
         selected_row = merged_df.iloc[selected_indices[0]]
         st.subheader("Selected Record Details:")
