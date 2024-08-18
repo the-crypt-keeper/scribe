@@ -4,10 +4,10 @@ import json
 import os
 import re
 import random
-from urllib.parse import urlparse
+import sys
 from jinja2 import Template
 import nltk
-from nltk.corpus import words
+from nltk.corpus import words, brown
 
 TECHNIQUES = [
   {
@@ -92,27 +92,37 @@ TECHNIQUES = [
   }
 ]
 
-def load_dictionary_and_get_random_words(num_words=5):
+BASIC_WORD_LIST = []
+ADVANCED_WORD_LIST = []
+def load_dictionaries():
+    global BASIC_WORD_LIST
+    global ADVANCED_WORD_LIST
+    
+    nltk.download('brown', quiet=True)
     nltk.download('words', quiet=True)
-    word_list = words.words()
-    return random.sample(word_list, num_words)
-
+    
+    BASIC_WORD_LIST = words.words('en-basic')
+    ADVANCED_WORD_LIST = list(brown.words(categories=['adventure','fiction','humor','science_fiction','romance']))
+    
+def get_random_words(num_words=6):
+    return random.sample(BASIC_WORD_LIST, int(num_words/2)) + random.sample(ADVANCED_WORD_LIST, int(num_words/2))
+    
 SYSTEM_PROMPT = """Let's do some creative brainstorming with the {{title}} technique. {{summary}}
 Use these random words for inspiration: {{random_words}}
-Return a markdown list of 3 example worlds created with this technique.
-Provide the following details for each world:
+
+Consider the following details for each world:
 
 - Concept: Explain how the technique was applied to produce this idea
 - World Name: What is this world called
 - Description: Describe the world and its inhabitants.
 - Twist: A deeper, hidden meaning or creative twist underlying this world.
-"""
+
+Return 3 example worlds created with this technique."""
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
-MODEL = "openai/dolphin-2.5-mixtral-8x7b"
-NUM_COMPLETIONS = 1
+MODEL = sys.argv[1]
 NUM_ITERATIONS = 5
 
 def get_output_filename(model):
@@ -122,7 +132,7 @@ def get_output_filename(model):
     safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
     return f"ideas_{safe_model_name}.json"
 
-def get_llm_response(messages, n = 1, stream = True, decode_json = False, **params):
+def get_llm_response(messages, n = 1, max_tokens = 3072, stream = True, decode_json = False, **params):
     try:
         response = litellm.completion(
             model=MODEL,
@@ -130,7 +140,7 @@ def get_llm_response(messages, n = 1, stream = True, decode_json = False, **para
             messages=messages,
             api_base=API_BASE_URL,
             api_key=API_KEY,
-            max_tokens=4095,
+            max_tokens=max_tokens,
             stream=stream,
             **params
         )
@@ -142,10 +152,12 @@ def get_llm_response(messages, n = 1, stream = True, decode_json = False, **para
                     content = chunk.choices[0].delta.content
                     full_response += content
                     print(content, end='', flush=True)
+            full_response = [full_response]
         else:
             full_response = [x.message.content for x in response.choices]
             
         if decode_json:
+            full_response = full_response[0]
             result = full_response[full_response.find('{'):full_response.rfind('}')+1]
             events = []
             try:
@@ -167,15 +179,20 @@ def get_llm_response(messages, n = 1, stream = True, decode_json = False, **para
 def main():
     output_filename = get_output_filename(MODEL)
     outf = open(output_filename, 'a')
+    sampler = {
+        'temperature': 1.0,
+        'min_p': 0.05,
+        'repetition_penalty' : 1.1
+    }
 
     for method in TECHNIQUES:
         print('>>>', method['title'])
         ideas = []
         for iter in range(NUM_ITERATIONS):
-            random_words = load_dictionary_and_get_random_words()
-            method_with_words = {**method, 'random_words': ', '.join(random_words)}
-            messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(**method_with_words)}]
-            for completion in get_llm_response(messages, n=NUM_COMPLETIONS, stream=False, seed=random.randint(0, 65535)):
+            random_words = get_random_words()
+            print(random_words)
+            messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(random_words=', '.join(random_words), **method)}]
+            for completion in get_llm_response(messages, n=1, stream=False, seed=random.randint(0, 65535), **sampler):
                 for answer in completion:
                     print(answer)                    
                     idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
@@ -184,5 +201,6 @@ def main():
                     print('--')
 
     outf.close()
-    
+
+load_dictionaries()
 main()
