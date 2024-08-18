@@ -5,6 +5,29 @@ import sys
 from typing import List, Dict
 
 @st.cache_resource
+def create_merged_dataframe(cleaner_data, prepare_data):
+    # Extract relevant information from cleaner data
+    cleaner_info = [{
+        'idea_id': i + 1,
+        'model': item.get('model', ''),
+        'method': item.get('method', ''),
+    } for i, item in enumerate(cleaner_data)]
+
+    # Create DataFrame from prepare data
+    prepare_df = pd.DataFrame(prepare_data)
+
+    # Create DataFrame from cleaner info
+    cleaner_df = pd.DataFrame(cleaner_info)
+
+    # Merge the DataFrames
+    merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
+
+    # Add a checkbox column as the first column
+    merged_df.insert(0, 'Select', False)
+
+    return merged_df
+
+@st.cache_resource
 def load_cleaner_data(file_path):
     with open(file_path, 'r') as f:
         return [json.loads(line) for line in f]
@@ -37,24 +60,8 @@ def main():
     cleaner_data = load_cleaner_data(cleaner_path)
     prepare_data = load_prepare_data(prepare_path)
 
-    # Extract relevant information from cleaner data
-    cleaner_info = [{
-        'idea_id': i + 1,
-        'model': item.get('model', ''),
-        'method': item.get('method', ''),
-    } for i, item in enumerate(cleaner_data)]
-
-    # Create DataFrame from prepare data
-    prepare_df = pd.DataFrame(prepare_data)
-
-    # Create DataFrame from cleaner info
-    cleaner_df = pd.DataFrame(cleaner_info)
-
-    # Merge the DataFrames
-    merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
-
-    # Add a checkbox column as the first column
-    merged_df.insert(0, 'Select', False)
+    # Create and cache the merged dataframe
+    merged_df = create_merged_dataframe(cleaner_data, prepare_data)
 
     # Display the merged DataFrame with checkboxes
     # Exclude 'idea_id' from the displayed columns
