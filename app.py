@@ -2,12 +2,40 @@ import streamlit as st
 import pandas as pd
 import json
 import sys
+import sqlite3
+from enum import Enum
 from typing import List, Dict
 from st_aggrid import AgGrid, GridUpdateMode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
+class Rating(Enum):
+    BROKEN = "BROKEN"
+    BAD = "BAD"
+    GOOD = "GOOD"
+    EXCELLENT = "EXCELLENT"
+
+def init_db():
+    conn = sqlite3.connect('world_ratings.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS ratings
+                 (id INTEGER PRIMARY KEY, rating TEXT)''')
+    conn.commit()
+    return conn
+
+def get_rating(conn, world_id):
+    c = conn.cursor()
+    c.execute("SELECT rating FROM ratings WHERE id=?", (world_id,))
+    result = c.fetchone()
+    return result[0] if result else None
+
+def save_rating(conn, world_id, rating):
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO ratings (id, rating) VALUES (?, ?)",
+              (world_id, rating))
+    conn.commit()
+
 @st.cache_resource
-def create_merged_dataframe(cleaner_data, prepare_data):
+def create_merged_dataframe(cleaner_data, prepare_data, conn):
     # Extract relevant information from cleaner data
     cleaner_info = [{
         'idea_id': i + 1,
@@ -23,6 +51,9 @@ def create_merged_dataframe(cleaner_data, prepare_data):
 
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
+
+    # Add ratings column
+    merged_df['rating'] = merged_df['id'].apply(lambda x: get_rating(conn, x))
 
     return merged_df
 
@@ -59,12 +90,20 @@ def main():
     cleaner_data = load_cleaner_data(cleaner_path)
     prepare_data = load_prepare_data(prepare_path)
 
+    # Initialize database
+    conn = init_db()
+
     # Create and cache the merged dataframe
-    merged_df = create_merged_dataframe(cleaner_data, prepare_data)
+    merged_df = create_merged_dataframe(cleaner_data, prepare_data, conn)
 
     # Display the merged DataFrame using AgGrid
     gb = GridOptionsBuilder.from_dataframe(merged_df)
     gb.configure_selection(selection_mode='single', use_checkbox=False)
+    gb.configure_column("rating", header_name="Rating", editable=True, 
+                        cellEditor='agSelectCellEditor',
+                        cellEditorParams={
+                            'values': [None] + [r.value for r in Rating]
+                        })
     gb.configure_column("concept", header_name="Concept", width="300")
     gb.configure_column("twist", header_name="Twist", width="300")
     gb.configure_column("idea_id", header_name="Idea ID", hide=True)
@@ -79,9 +118,16 @@ def main():
         width='100%',
         data_return_mode='AS_INPUT',
         fit_columns_on_grid_load=True,
+        update_mode=GridUpdateMode.MODEL_CHANGED,
     )
 
     selected_row = grid_response['selected_rows'][0] if grid_response['selected_rows'] else None
+
+    # Save rating if changed
+    if grid_response['data'] is not None:
+        for row in grid_response['data']:
+            if row['rating'] != get_rating(conn, row['id']):
+                save_rating(conn, row['id'], row['rating'])
 
     # Display selected record details
     if selected_row:
