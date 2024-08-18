@@ -1,7 +1,7 @@
 import json
 import sys
 import uuid
-from typing import List
+from typing import List, Dict
 from pydantic import BaseModel, Field
 
 class World(BaseModel):
@@ -12,20 +12,23 @@ class World(BaseModel):
     twist: str = Field(description='Unique Twist that makes this world interesting')
     idea_id: int = Field(description='ID of the original idea')
 
-def read_and_process_file(input_filename: str) -> List[World]:
+def read_and_process_file(input_filename: str) -> tuple[List[World], List[Dict]]:
     worlds = []
+    errors = []
 
     with open(input_filename, 'r') as f:
         for idea_id, line in enumerate(f, start=1):
             data = json.loads(line)
 
-            if 'clean' in data and 'worlds' in data['clean']:
+            if 'clean_error' in data:
+                errors.append({'idea_id': idea_id, 'error': data['clean_error']})
+            elif 'clean' in data and 'worlds' in data['clean']:
                 for world in data['clean']['worlds']:
                     world['id'] = str(uuid.uuid4())
                     world['idea_id'] = idea_id
                     worlds.append(World(**world))
 
-    return worlds
+    return worlds, errors
 
 def write_output(worlds: List[World], output_filename: str):
     with open(output_filename, 'w') as f:
@@ -35,9 +38,16 @@ def main():
     input_filename = sys.argv[1]
     output_filename = 'prepare.json'
 
-    worlds = read_and_process_file(input_filename)
+    worlds, errors = read_and_process_file(input_filename)
     write_output(worlds, output_filename)
+    
+    print(f"Total number of output worlds: {len(worlds)}")
     print(f"Prepared data written to {output_filename}")
+    
+    if errors:
+        print("\nRecords with clean_error:")
+        for error in errors:
+            print(f"Idea ID: {error['idea_id']}, Error: {error['error']}")
 
 if __name__ == "__main__":
     main()
