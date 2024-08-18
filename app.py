@@ -86,10 +86,10 @@ def main():
     # Display selected record details
     if selected_row:
         st.subheader("Selected Record Details:")
-        col1, col2 = st.columns([1, 9])
         
         selected_row_dict = {k: v for k, v in selected_row.items() if k != '_selectedRowNodeInfo'}
         for key, value in selected_row_dict.items():
+            col1, col2 = st.columns([1, 9])
             with col1:
                 st.write(f"**{key.capitalize()}:**")
             with col2:
