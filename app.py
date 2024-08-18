@@ -3,6 +3,8 @@ import pandas as pd
 import json
 import sys
 from typing import List, Dict
+from st_aggrid import AgGrid, GridUpdateMode
+from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 @st.cache_resource
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -21,9 +23,6 @@ def create_merged_dataframe(cleaner_data, prepare_data):
 
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
-
-    # Add a checkbox column as the first column
-    merged_df.insert(0, 'Select', False)
 
     return merged_df
 
@@ -63,50 +62,37 @@ def main():
     # Create and cache the merged dataframe
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
 
-    # Display the merged DataFrame with checkboxes
+    # Display the merged DataFrame using AgGrid
     # Hide 'id' and 'description' columns
     display_columns = [col for col in merged_df.columns if col not in ['id', 'description']]
     
-    edited_df = st.data_editor(
+    gb = GridOptionsBuilder.from_dataframe(merged_df[display_columns])
+    gb.configure_selection(selection_mode='single', use_checkbox=True)
+    gb.configure_column("concept", header_name="Concept", width="300")
+    gb.configure_column("twist", header_name="Twist", width="300")
+    gb.configure_column("idea_id", header_name="Idea ID", width="100")
+    gridOptions = gb.build()
+
+    grid_response = AgGrid(
         merged_df[display_columns],
-        height=int(st.get_option('deprecation.showPyplotGlobalUse') * 0.5),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Select": st.column_config.CheckboxColumn(
-                "Select",
-                help="Select this row",
-                default=False,
-                width="small",
-            ),
-            "concept": st.column_config.TextColumn(
-                "Concept",
-                width="large",
-            ),
-            "twist": st.column_config.TextColumn(
-                "Twist",
-                width="large",
-            ),
-            "idea_id": st.column_config.Column(
-                "Idea ID",
-                width="small",
-                required=True,
-            ),
-        },
-        disabled=merged_df.columns.drop(['Select']).tolist(),
+        gridOptions=gridOptions,
+        height=400,
+        width='100%',
+        data_return_mode='AS_INPUT',
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        fit_columns_on_grid_load=True,
     )
 
-    # Get the selected row from the original merged_df
-    selected_row = merged_df[edited_df['Select']].iloc[0] if not edited_df[edited_df['Select']].empty else None
+    selected_row = grid_response['selected_rows'][0] if grid_response['selected_rows'] else None
 
     # Display selected record details
-    if selected_row is not None:
+    if selected_row:
         st.subheader("Selected Record Details:")
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("Prepared Data")
-            selected_row_dict = selected_row.drop(['Select', 'id']).to_dict()
+            selected_row_dict = {k: v for k, v in selected_row.items() if k != '_selectedRowNodeInfo'}
             st.json(selected_row_dict)
         
         with col2:
