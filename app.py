@@ -64,8 +64,8 @@ def main():
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
 
     # Display the merged DataFrame with checkboxes
-    # Exclude 'idea_id' from the displayed columns
-    display_columns = [col for col in merged_df.columns if col != 'id']
+    # Exclude 'idea_id' and 'description' from the displayed columns
+    display_columns = [col for col in merged_df.columns if col not in ['id', 'idea_id', 'description']]
     
     edited_df = st.data_editor(
         merged_df[display_columns],
@@ -77,9 +77,17 @@ def main():
                 "Select",
                 help="Select this row",
                 default=False,
-            )
+            ),
+            "concept": st.column_config.TextColumn(
+                "Concept",
+                width="large",
+            ),
+            "twist": st.column_config.TextColumn(
+                "Twist",
+                width="large",
+            ),
         },
-        disabled=merged_df.columns.drop(['Select', 'idea_id']).tolist(),
+        disabled=merged_df.columns.drop(['Select']).tolist(),
     )
 
     # Get the selected row
