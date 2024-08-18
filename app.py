@@ -43,8 +43,8 @@ def main():
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
 
-    # Add a checkbox column
-    merged_df['Select'] = False
+    # Add a checkbox column as the first column
+    merged_df.insert(0, 'Select', False)
 
     # Display the merged DataFrame with checkboxes
     edited_df = st.data_editor(
@@ -57,6 +57,11 @@ def main():
                 "Select",
                 help="Select this row",
                 default=False,
+            ),
+            "idea_id": st.column_config.Column(
+                "ID",
+                disabled=True,
+                hidden=True,
             )
         },
         disabled=merged_df.columns.drop('Select').tolist(),
