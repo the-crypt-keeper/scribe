@@ -77,6 +77,7 @@ def main():
                 "Select",
                 help="Select this row",
                 default=False,
+                width="small",
             ),
             "concept": st.column_config.TextColumn(
                 "Concept",
