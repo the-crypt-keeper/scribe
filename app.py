@@ -22,11 +22,10 @@ def init_db():
     conn.commit()
     return conn
 
-def get_rating(conn, world_id):
+def get_all_ratings(conn):
     c = conn.cursor()
-    c.execute("SELECT rating FROM ratings WHERE id=?", (world_id,))
-    result = c.fetchone()
-    return result[0] if result else None
+    c.execute("SELECT id, rating FROM ratings")
+    return dict(c.fetchall())
 
 def save_rating(conn, world_id, rating):
     c = conn.cursor()
@@ -35,7 +34,7 @@ def save_rating(conn, world_id, rating):
     conn.commit()
 
 @st.cache_resource
-def create_merged_dataframe(cleaner_data, prepare_data, conn):
+def create_merged_dataframe(cleaner_data, prepare_data):
     # Extract relevant information from cleaner data
     cleaner_info = [{
         'idea_id': i + 1,
@@ -51,9 +50,6 @@ def create_merged_dataframe(cleaner_data, prepare_data, conn):
 
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
-
-    # Add ratings column
-    merged_df['rating'] = merged_df['id'].apply(lambda x: get_rating(conn, x))
 
     return merged_df
 
@@ -94,7 +90,11 @@ def main():
     conn = init_db()
 
     # Create and cache the merged dataframe
-    merged_df = create_merged_dataframe(cleaner_data, prepare_data, conn)
+    merged_df = create_merged_dataframe(cleaner_data, prepare_data)
+
+    # Get all ratings and apply them to the dataframe
+    all_ratings = get_all_ratings(conn)
+    merged_df['rating'] = merged_df['id'].map(all_ratings)
 
     # Display the merged DataFrame using AgGrid
     gb = GridOptionsBuilder.from_dataframe(merged_df)
