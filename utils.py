@@ -24,7 +24,7 @@ def decode_json(response, first_key = True):
         print(e)
         return None
 
-def get_llm_response(messages, model, n=1, max_tokens=3072, **params):
+def get_llm_response(messages, model, n=1, **params):
     try:
         response = litellm.completion(
             model=model,
@@ -32,16 +32,13 @@ def get_llm_response(messages, model, n=1, max_tokens=3072, **params):
             messages=messages,
             api_base=API_BASE_URL,
             api_key=API_KEY,
-            max_tokens=max_tokens,
-            min_tokens=8,
             **params
         )
-
-        return [x.message.content for x in response.choices]
-        
+        answers = [x.message.content for x in response.choices]
+        return answers[0] if n==1 else answers
     except Exception as e:
         print(f"Error in LLM call: {e}")
-        return []
+        return None
 
 def get_llm_response_stream(messages, model, max_tokens=3072, **params):
     try:
@@ -62,8 +59,6 @@ def get_llm_response_stream(messages, model, max_tokens=3072, **params):
                 content = chunk.choices[0].delta.content
                 full_response += content
                 print(content, end='', flush=True)
-        
-        print()  # New line after streaming is complete
         
         yield full_response
         

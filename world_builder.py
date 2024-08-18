@@ -139,14 +139,13 @@ def process_prompt(args):
     sampler = {
         'temperature': 1.0,
         'min_p': 0.05,
-        'repetition_penalty': 1.1
+        'repetition_penalty': 1.1,
+        'max_tokens': 3072,
+        'min_tokens': 10 
     }
-    ideas = []
-    for completion in get_llm_response(messages, MODEL, n=1, seed=random.randint(0, 65535), **sampler):
-        for answer in completion:
-            idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
-            ideas.append(idea)
-    return ideas
+    answer = get_llm_response(messages, MODEL, n=1, **sampler)
+    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
+    return [idea]
 
 def main():
     output_filename = get_output_filename(MODEL, 'ideas')

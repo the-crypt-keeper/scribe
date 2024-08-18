@@ -28,13 +28,13 @@ NUM_PARALLEL = 4  # Default number of parallel threads
 schema = WorldList.model_json_schema()
 
 
-def process_prompt(data):
+def process_prompt(data, text_key):
     if 'clean' in data:
         return data
 
-    user_text = data.get('user_text', '')
+    user_text = data.get(text_key, '')
     messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(text=user_text)}]    
-    sampler = { 'temperature': 0.0 }
+    sampler = { 'temperature': 0.0, 'max_tokens': 3072 }
     sampler['guided_json'] = schema
     
     try:
@@ -44,8 +44,8 @@ def process_prompt(data):
     except Exception as e:
         data['clean_error'] = str(e)
 
-    data['timestamp'] = time.time()
-    data['model'] = MODEL
+    data['clean_timestamp'] = time.time()
+    data['clean_model'] = MODEL
     return data
 
 def run(input_file: str, key_name: str):
@@ -58,7 +58,7 @@ def run(input_file: str, key_name: str):
     total_prompts = len(data)
     
     with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
-        futures = [executor.submit(process_prompt, item) for item in data]
+        futures = [executor.submit(process_prompt, item, key_name) for item in data]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
