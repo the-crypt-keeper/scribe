@@ -86,10 +86,16 @@ def main():
     # Display selected record details
     if selected_row:
         st.subheader("Selected Record Details:")
-        selected_row_dict = {k: v for k, v in selected_row.items() if k != '_selectedRowNodeInfo'}
-        st.json(selected_row_dict)
+        col1, col2 = st.columns([1, 9])
         
-        with st.expander('DEBUG: Original Ideal'):
+        selected_row_dict = {k: v for k, v in selected_row.items() if k != '_selectedRowNodeInfo'}
+        for key, value in selected_row_dict.items():
+            with col1:
+                st.write(f"**{key.capitalize()}:**")
+            with col2:
+                st.write(value)
+        
+        with st.expander('DEBUG: Original Idea'):
             original_idea = get_original_idea(cleaner_data, selected_row['idea_id'])
             st.json(original_idea)
 
