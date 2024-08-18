@@ -3,6 +3,7 @@ from utils import get_llm_response
 import re
 import random
 import sys
+import json
 from jinja2 import Template
 import nltk
 from nltk.corpus import words, brown
