@@ -2,11 +2,15 @@ import streamlit as st
 import pandas as pd
 import json
 import sys
+from typing import List, Dict
 
 @st.cache_resource
 def load_cleaner_data(file_path):
     with open(file_path, 'r') as f:
         return [json.loads(line) for line in f]
+
+def get_original_idea(cleaner_data: List[Dict], idea_id: int) -> Dict:
+    return next((item for item in cleaner_data if item.get('idea_id') == idea_id), None)
 
 @st.cache_resource
 def load_prepare_data(file_path):
@@ -64,8 +68,20 @@ def main():
     # Display selected record details
     if selected_row is not None:
         st.subheader("Selected Record Details:")
-        selected_row_dict = selected_row.drop('Select').to_dict()
-        st.json(selected_row_dict)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Prepared Data")
+            selected_row_dict = selected_row.drop('Select').to_dict()
+            st.json(selected_row_dict)
+        
+        with col2:
+            st.subheader("Original Idea")
+            original_idea = get_original_idea(cleaner_data, selected_row['idea_id'])
+            if original_idea:
+                st.json(original_idea)
+            else:
+                st.write("Original idea not found.")
 
 if __name__ == "__main__":
     main()
