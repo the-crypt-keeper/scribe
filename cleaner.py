@@ -27,47 +27,43 @@ NUM_PARALLEL = 4  # Default number of parallel threads
 
 schema = WorldList.model_json_schema()
 
-def generate_prompts(input_file, key_name):
-    prompts = []
-    with open(input_file, 'r') as f:
-        for line in f:
-            data = json.loads(line)
-            user_text = data.get(key_name, '')
-            if user_text:
-                prompts.append(user_text)
-    return prompts
 
-def process_prompt(user_text):
+def process_prompt(data):
+    if 'clean' in data:
+        return data
+
+    user_text = data.get('user_text', '')
     messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(text=user_text)}]    
     sampler = { 'temperature': 0.0 }
     sampler['guided_json'] = schema
     
-    ideas = []
-    answer = get_llm_response(messages, MODEL, seed=random.randint(0, 65535), **sampler)
-    
     try:
-        answer = json.loads(answer)
-    except:
-        pass
-    idea = {'timestamp': time.time(), 'result': answer, 'user_text': user_text, 'model': MODEL}
-    ideas.append(idea)
-    return ideas
+        answer = get_llm_response(messages, MODEL, seed=random.randint(0, 65535), **sampler)
+        clean_data = json.loads(answer)
+        data['clean'] = clean_data
+    except Exception as e:
+        data['clean_error'] = str(e)
+
+    data['timestamp'] = time.time()
+    data['model'] = MODEL
+    return data
 
 def run(input_file: str, key_name: str):
     output_filename = get_output_filename(MODEL, 'cleaner')
-    outf = open(output_filename, 'a')
+    outf = open(output_filename, 'w')
 
-    prompts = generate_prompts(input_file, key_name)
-    total_prompts = len(prompts)
+    with open(input_file, 'r') as f:
+        data = [json.loads(line) for line in f]
+
+    total_prompts = len(data)
     
     with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
-        futures = [executor.submit(process_prompt, prompt) for prompt in prompts]
+        futures = [executor.submit(process_prompt, item) for item in data]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
-                ideas = future.result()
-                for idea in ideas:
-                    outf.write(json.dumps(idea) + '\n')
+                result = future.result()
+                outf.write(json.dumps(result) + '\n')
                 pbar.update(1)
 
     outf.close()
