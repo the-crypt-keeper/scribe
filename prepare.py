@@ -12,10 +12,7 @@ class World(BaseModel):
     twist: str = Field(description='Unique Twist that makes this world interesting')
     idea_id: int = Field(description='ID of the original idea')
 
-class PreparedData(BaseModel):
-    worlds: List[World]
-
-def read_and_process_file(input_filename: str) -> PreparedData:
+def read_and_process_file(input_filename: str) -> List[World]:
     worlds = []
 
     with open(input_filename, 'r') as f:
@@ -28,18 +25,18 @@ def read_and_process_file(input_filename: str) -> PreparedData:
                     world['idea_id'] = idea_id
                     worlds.append(World(**world))
 
-    return PreparedData(worlds=worlds)
+    return worlds
 
-def write_output(prepared_data: PreparedData, output_filename: str):
+def write_output(worlds: List[World], output_filename: str):
     with open(output_filename, 'w') as f:
-        json.dump(prepared_data.model_dump()['worlds'], f, indent=2)
+        json.dump([world.model_dump() for world in worlds], f, indent=2)
 
 def main():
     input_filename = sys.argv[1]
     output_filename = 'prepare.json'
 
-    prepared_data = read_and_process_file(input_filename)
-    write_output(prepared_data, output_filename)
+    worlds = read_and_process_file(input_filename)
+    write_output(worlds, output_filename)
     print(f"Prepared data written to {output_filename}")
 
 if __name__ == "__main__":
