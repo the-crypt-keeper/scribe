@@ -105,7 +105,8 @@ def main():
                         cellEditor='agSelectCellEditor',
                         cellEditorParams={
                             'values': [None] + [r.value for r in Rating]
-                        })
+                        },
+                        singleClickEdit=True)
     gb.configure_column("concept", header_name="Concept", width="300")
     gb.configure_column("twist", header_name="Twist", width="300")
     gb.configure_column("idea_id", header_name="Idea ID", hide=True)
@@ -128,9 +129,12 @@ def main():
     # Save rating if changed
     if grid_response['data'] is not None:
         for index, row in grid_response['data'].iterrows():
-            if row['rating'] != row['rating']: continue
-            print('SAVING', row)
-            save_rating(conn, row['id'], row['rating'])
+            old_rating = merged_df.loc[index, 'rating']
+            new_rating = row['rating']
+            if old_rating != new_rating:
+                print(f'SAVING: id={row["id"]}, old_rating={old_rating}, new_rating={new_rating}')
+                save_rating(conn, row['id'], new_rating)
+                merged_df.loc[index, 'rating'] = new_rating
 
     # Display selected record details
     if selected_row:
