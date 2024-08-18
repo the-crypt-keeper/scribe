@@ -38,7 +38,7 @@ def process_prompt(data, text_key):
     sampler['guided_json'] = schema
     
     try:
-        answer = get_llm_response(messages, MODEL, seed=random.randint(0, 65535), **sampler)
+        answer = get_llm_response(messages, MODEL, **sampler)
         clean_data = json.loads(answer)
         data['clean'] = clean_data
     except Exception as e:
