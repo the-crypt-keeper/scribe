@@ -6,7 +6,7 @@ from typing import List, Dict
 from st_aggrid import AgGrid, GridUpdateMode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
-@st.cache_resource
+@st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
     # Extract relevant information from cleaner data
     cleaner_info = [{
