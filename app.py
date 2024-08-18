@@ -18,7 +18,7 @@ def init_db():
     def get_conn():
         conn = sqlite3.connect('world_ratings.db', check_same_thread=False)
         conn.execute('''CREATE TABLE IF NOT EXISTS ratings
-                        (id INTEGER PRIMARY KEY, rating TEXT)''')
+                        (id TEXT PRIMARY KEY, rating TEXT)''')
         conn.commit()
         return conn
     return get_conn
@@ -33,7 +33,7 @@ def save_rating(get_conn, world_id, rating):
     with get_conn() as conn:
         c = conn.cursor()
         c.execute("INSERT OR REPLACE INTO ratings (id, rating) VALUES (?, ?)",
-                  (world_id, rating))
+                  (str(world_id), rating))
         conn.commit()
 
 @st.cache_resource
