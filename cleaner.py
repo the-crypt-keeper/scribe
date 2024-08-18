@@ -5,6 +5,7 @@ import random
 import sys
 import json
 from jinja2 import Template
+from fire import Fire
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from pydantic import BaseModel, Field
@@ -26,10 +27,18 @@ NUM_PARALLEL = 4  # Default number of parallel threads
 
 schema = WorldList.model_json_schema()
 
-def generate_prompts():
+def generate_prompts(input_file, key_name):
     prompts = []
-    messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render()}]
-    prompts.append(messages)
+    with open(input_file, 'r') as f:
+        for line in f:
+            data = json.loads(line)
+            user_text = data.get(key_name, '')
+            if user_text:
+                messages = [
+                    {'role': 'system', 'content': SYSTEM_TEMPLATE.render()},
+                    {'role': 'user', 'content': user_text}
+                ]
+                prompts.append(messages)
     return prompts
 
 def process_prompt(args):
@@ -49,11 +58,11 @@ def process_prompt(args):
     ideas.append(idea)
     return ideas
 
-def main():
+def run(input_file: str, key_name: str):
     output_filename = get_output_filename(MODEL, 'cleaner')
     outf = open(output_filename, 'a')
 
-    prompts = generate_prompts()
+    prompts = generate_prompts(input_file, key_name)
     total_prompts = len(prompts)
 
     with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
@@ -68,4 +77,5 @@ def main():
 
     outf.close()
 
-main()
+if __name__ == "__main__":
+    Fire(run)
