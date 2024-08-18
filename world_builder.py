@@ -105,6 +105,13 @@ API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
 MODEL = "openai/Hermes-2-Theta-Llama-3-70B"
 RESPONSE_FORMAT = None #{"type": "json_object"}
 
+def get_output_filename(model):
+    # Extract the model name after the last '/'
+    model_name = model.split('/')[-1]
+    # Replace any non-alphanumeric characters with underscores
+    safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
+    return f"ideas_{safe_model_name}.json"
+
 def get_llm_response(messages, n = 1, stream = True, decode_json = False):
     try:
         response = litellm.completion(
@@ -151,7 +158,8 @@ for method in TECHNIQUES:
     messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(**method)}]
     print('>>>',method['title'])
     ideas = []
-    outf = open('ideas.json', 'a')
+    output_filename = get_output_filename(MODEL)
+    outf = open(output_filename, 'a')
     for completion in get_llm_response(messages, n=5, stream=False):
         for answer in completion:
             idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL}
