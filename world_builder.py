@@ -3,6 +3,7 @@ import litellm
 import json
 import os
 import re
+import random
 from urllib.parse import urlparse
 from jinja2 import Template
 
@@ -102,8 +103,9 @@ SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
-MODEL = "openai/Hermes-2-Theta-Llama-3-70B"
-RESPONSE_FORMAT = None #{"type": "json_object"}
+MODEL = "openai/dolphin-2.5-mixtral-8x7b"
+NUM_COMPLETIONS = 1
+NUM_ITERATIONS = 5
 
 def get_output_filename(model):
     # Extract the model name after the last '/'
@@ -112,7 +114,7 @@ def get_output_filename(model):
     safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
     return f"ideas_{safe_model_name}.json"
 
-def get_llm_response(messages, n = 1, stream = True, decode_json = False):
+def get_llm_response(messages, n = 1, stream = True, decode_json = False, **params):
     try:
         response = litellm.completion(
             model=MODEL,
@@ -121,8 +123,8 @@ def get_llm_response(messages, n = 1, stream = True, decode_json = False):
             api_base=API_BASE_URL,
             api_key=API_KEY,
             max_tokens=4095,
-            response_format=RESPONSE_FORMAT,
-            stream=stream
+            stream=stream,
+            **params
         )
 
         full_response = ""
@@ -154,15 +156,23 @@ def get_llm_response(messages, n = 1, stream = True, decode_json = False):
         print(f"Error in LLM call: {e}")
         yield []
 
-for method in TECHNIQUES:
-    messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(**method)}]
-    print('>>>',method['title'])
-    ideas = []
+def main():
     output_filename = get_output_filename(MODEL)
     outf = open(output_filename, 'a')
-    for completion in get_llm_response(messages, n=5, stream=False):
-        for answer in completion:
-            idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL}
-            ideas.append(idea)
-            outf.write(json.dumps(idea)+'\n')
-    print('--')
+
+    for method in TECHNIQUES:
+        messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(**method)}]
+        print('>>>',method['title'])
+        ideas = []
+        for iter in range(NUM_ITERATIONS):
+            for completion in get_llm_response(messages, n=NUM_COMPLETIONS, stream=False, seed=random.randint(0, 65535)):
+                for answer in completion:
+                    print(answer)                    
+                    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL}
+                    ideas.append(idea)
+                    outf.write(json.dumps(idea)+'\n')
+                    print('--')
+
+    outf.close()
+    
+main()
