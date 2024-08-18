@@ -14,6 +14,7 @@ def load_prepare_data(file_path):
         return json.load(f)
 
 def main():
+    st.set_page_config(layout="wide")
     st.title("World Builder Data Viewer")
 
     cleaner_path = sys.argv[1]
@@ -39,7 +40,14 @@ def main():
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
 
     # Display the merged DataFrame
-    st.dataframe(merged_df)
+    st.dataframe(merged_df, height=int(st.get_option('deprecation.showPyplotGlobalUse') * 0.5), use_container_width=True)
+
+    # Add row selection functionality
+    selected_indices = st.dataframe(merged_df).selected_rows
+    if selected_indices:
+        selected_row = merged_df.iloc[selected_indices[0]]
+        st.subheader("Selected Record Details:")
+        st.json(selected_row.to_dict())
 
 if __name__ == "__main__":
     main()
