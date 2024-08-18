@@ -10,7 +10,7 @@ def load_cleaner_data(file_path):
         return [json.loads(line) for line in f]
 
 def get_original_idea(cleaner_data: List[Dict], idea_id: int) -> Dict:
-    return next((item for item in cleaner_data if item.get('idea_id') == idea_id), None)
+    return cleaner_data[idea_id-1]
 
 @st.cache_resource
 def load_prepare_data(file_path):
@@ -19,6 +19,16 @@ def load_prepare_data(file_path):
 
 def main():
     st.set_page_config(layout="wide")
+    st.markdown("""
+            <style>
+                .block-container {
+                        padding-top: 2rem;
+                        padding-bottom: 0rem;
+                        padding-left: 1rem;
+                        padding-right: 1rem;
+                }
+            </style>
+            """, unsafe_allow_html=True)   
     st.title("World Builder Data Viewer")
 
     cleaner_path = sys.argv[1]
@@ -48,7 +58,7 @@ def main():
 
     # Display the merged DataFrame with checkboxes
     # Exclude 'idea_id' from the displayed columns
-    display_columns = [col for col in merged_df.columns if col != 'idea_id']
+    display_columns = [col for col in merged_df.columns if col != 'id']
     
     edited_df = st.data_editor(
         merged_df[display_columns],
