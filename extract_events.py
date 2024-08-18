@@ -133,7 +133,10 @@ def filter_sections_with_years(sections):
 wikipedia_urls = [
     "https://en.wikipedia.org/wiki/15th_century",
     "https://en.wikipedia.org/wiki/16th_century",
-    "https://en.wikipedia.org/wiki/Timeline_of_the_17th_century"
+    "https://en.wikipedia.org/wiki/Timeline_of_the_17th_century",
+    "https://en.wikipedia.org/wiki/Timeline_of_the_18th_century",
+    "https://en.wikipedia.org/wiki/Timeline_of_the_19th_century",
+    "https://en.wikipedia.org/wiki/Timeline_of_the_20th_century"
 ]
 
 for url in wikipedia_urls:

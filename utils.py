@@ -5,16 +5,16 @@ import os
 API_BASE_URL = "http://100.109.96.89:3333/v1"
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
 
-def decode_json(response):
+def decode_json(response, first_key = True):
     result = response[response.find('{'):response.rfind('}')+1]
     try:
         data = json.loads(result)
-        events = data.get(list(data.keys())[0])
-        return events
+        if first_key: data = data.get(list(data.keys())[0])
+        return first_key
     except Exception as e:
         print(result)
         print(e)
-        return []
+        return None
 
 def get_llm_response(messages, model, n=1, max_tokens=3072, **params):
     try:
@@ -36,11 +36,10 @@ def get_llm_response(messages, model, n=1, max_tokens=3072, **params):
         print(f"Error in LLM call: {e}")
         return []
 
-def get_llm_response_stream(messages, model, n=1, max_tokens=3072, **params):
+def get_llm_response_stream(messages, model, max_tokens=3072, **params):
     try:
         response = litellm.completion(
             model=model,
-            n=n,
             messages=messages,
             api_base=API_BASE_URL,
             api_key=API_KEY,
@@ -59,8 +58,8 @@ def get_llm_response_stream(messages, model, n=1, max_tokens=3072, **params):
         
         print()  # New line after streaming is complete
         
-        yield [full_response]
+        yield full_response
         
     except Exception as e:
         print(f"Error in LLM call: {e}")
-        yield []
+        yield None
