@@ -1,5 +1,5 @@
 import time
-from utils import get_llm_response, get_output_filename
+from utils import get_llama_completion, get_llm_response, get_output_filename
 import re
 import random
 import json
@@ -143,19 +143,22 @@ def generate_prompts(num_iterations, tokenizer=None):
     prompts = []
     for method in TECHNIQUES:
         for _ in range(num_iterations):
-            random_words = get_random_words()
-            messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(random_words=', '.join(random_words), **method)}]
-            prompts.append((method, random_words, messages, tokenizer))
+            vars = { 'random_words': ', '.join(get_random_words()), **method }
+            text = SYSTEM_TEMPLATE.render(**vars)            
+            messages = [{'role': 'user', 'content': text}]
+            if tokenizer:
+              vars['tokenizer'] = tokenizer.name_or_path
+              messages = [{"role": "user", "content": tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, bos_token='')}]            
+            prompts.append((messages, vars))
     return prompts
 
 def process_prompt(args):
-    method, random_words, messages, model, tokenizer = args
-    if tokenizer:
-        chat_template = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, bos_token='')
-        answer = get_llm_response([{"role": "user", "content": chat_template}], model, **SAMPLER)
+    model, messages, vars = args
+    if 'llama/' in model:
+      answer = get_llama_completion(messages, model, **SAMPLER)
     else:
-        answer = get_llm_response(messages, model, **SAMPLER)
-    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': model, 'random_words': random_words}
+      answer = get_llm_response(messages, model, **SAMPLER)
+    idea = {'timestamp': time.time(), 'messages': messages, 'result': answer, **vars}
     return [idea]
 
 def main(model: str, num_iterations: int = 5, num_parallel: int = 4, tokenizer: str = None):
@@ -169,23 +172,25 @@ def main(model: str, num_iterations: int = 5, num_parallel: int = 4, tokenizer: 
         tokenizer (str): Optional. The name of the HuggingFace tokenizer to use for pre-processing.
     """
     tokenizer_instance = None
-    if tokenizer:
-        tokenizer_instance = AutoTokenizer.from_pretrained(tokenizer)
-        tokenizer_instance.bos_token = ''
+    if tokenizer: tokenizer_instance = AutoTokenizer.from_pretrained(tokenizer)
     output_filename = get_output_filename(model, 'ideas')
     outf = open(output_filename, 'a')
 
     prompts = generate_prompts(num_iterations, tokenizer_instance)
     total_prompts = len(prompts)
+    
+    if '/' not in model:
+      model = 'openai/'+model if tokenizer is None else 'text-completion-openai/'+model
 
     with ThreadPoolExecutor(max_workers=num_parallel) as executor:
-        futures = [executor.submit(process_prompt, (method, random_words, messages, model, tokenizer_instance)) for method, random_words, messages, _ in prompts]
+        futures = [executor.submit(process_prompt, (model, messages, vars)) for messages, vars in prompts]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
                 ideas = future.result()
                 for idea in ideas:
                     outf.write(json.dumps(idea) + '\n')
+                    outf.flush()
                 pbar.update(1)
 
     outf.close()
