@@ -19,7 +19,10 @@ class World(BaseModel):
 class WorldList(BaseModel):
     worlds: list[World]
 
-SYSTEM_PROMPT = "Convert the following text provided by the user into a list of JSON objects with the keys { world_name, concept, description, twist }:\n\n{{text}}"
+SYSTEM_PROMPT = "Process the text provided by the user, extracting a list of JSON objects with the following schema:\n\n"
+SYSTEM_PROMPT += json.dumps(World.model_json_schema())
+SYSTEM_PROMPT += "\n\n{{text}}"
+
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 MODEL = 'openai/Mistral-7B-Instruct-v0.3-GPTQ-4bit'
@@ -35,18 +38,20 @@ def process_prompt(data, text_key):
     sampler = { 'temperature': 0.0, 'max_tokens': 3072 }
     sampler['guided_json'] = SCHEMA
     
+    answer = None
     try:
-        answer = get_llm_response(messages, MODEL, **sampler)
+        answer = get_llm_response(messages, MODEL, **sampler)       
         clean_data = json.loads(answer)
         data['clean'] = clean_data
     except Exception as e:
         data['clean_error'] = str(e)
+        data['clean_raw'] = answer
 
     data['clean_timestamp'] = time.time()
     data['clean_model'] = MODEL
     return data
 
-def run(input_file: str, key_name: str):
+def run(input_file: str, key_name: str = 'result'):
     output_filename = get_output_filename(MODEL, 'cleaner')
     outf = open(output_filename, 'w')
 

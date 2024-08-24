@@ -36,7 +36,6 @@ def get_llm_response(messages, model, n=1, **params):
             api_key=API_KEY,
             **params
         )
-        print(response)
         answers = [x.message.content for x in response.choices]
         return answers[0] if n==1 else answers
     except Exception as e:

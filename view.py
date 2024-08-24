@@ -10,7 +10,7 @@ def create_merged_dataframe(cleaner_data, prepare_data):
     cleaner_info = [{
         'idea_id': i + 1,
         'model': item.get('model', '').replace('openai/', ''),
-        'method': item.get('method', ''),
+        'method': item.get('title', ''),
     } for i, item in enumerate(cleaner_data)]
 
     # Create DataFrame from prepare data
@@ -21,9 +21,6 @@ def create_merged_dataframe(cleaner_data, prepare_data):
 
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
-
-    # Add world_name field
-    merged_df['world_name'] = merged_df.apply(lambda row: f"{row['concept']} - {row['twist']}", axis=1)
 
     return merged_df
 

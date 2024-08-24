@@ -158,7 +158,7 @@ def process_prompt(args):
       answer = get_llama_completion(messages, model, **SAMPLER)
     else:
       answer = get_llm_response(messages, model, **SAMPLER)
-    idea = {'timestamp': time.time(), 'messages': messages, 'result': answer, **vars}
+    idea = {'timestamp': time.time(), 'model': model, 'messages': messages, 'result': answer, **vars}
     return [idea]
 
 def main(model: str, num_iterations: int = 5, num_parallel: int = 4, tokenizer: str = None):
