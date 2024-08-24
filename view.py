@@ -164,16 +164,18 @@ def main():
         st.subheader("Reactions")
         world_reactions = reactions.get(str(selected_world['id']), {})
         cols = st.columns(5)
+        reaction_changed = False
         for i, (reaction, emoji) in enumerate(REACTIONS.items()):
             with cols[i]:
-                if st.checkbox(f"{emoji} {reaction.replace('_', ' ').title()}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}"):
+                new_value = st.checkbox(f"{emoji} {reaction.replace('_', ' ').title()}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}")
+                if new_value != world_reactions.get(reaction, False):
+                    reaction_changed = True
                     if str(selected_world['id']) not in reactions:
                         reactions[str(selected_world['id'])] = {}
-                    reactions[str(selected_world['id'])][reaction] = True
-                else:
-                    if str(selected_world['id']) in reactions and reaction in reactions[str(selected_world['id'])]:
-                        reactions[str(selected_world['id'])][reaction] = False
-        save_reactions(reactions)
+                    reactions[str(selected_world['id'])][reaction] = new_value
+        if reaction_changed:
+            save_reactions(reactions)
+            st.rerun()
 
         with st.expander('DEBUG: Original Idea'):
             original_idea = get_original_idea(cleaner_data, selected_world['idea_id'])
