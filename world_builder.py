@@ -9,6 +9,7 @@ from nltk.corpus import words, brown
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import fire
+from transformers import AutoTokenizer
 
 TECHNIQUES = [
   {
@@ -138,22 +139,26 @@ SAMPLER = {
     'min_tokens': 10 
 }
 
-def generate_prompts(num_iterations):
+def generate_prompts(num_iterations, tokenizer=None):
     prompts = []
     for method in TECHNIQUES:
         for _ in range(num_iterations):
             random_words = get_random_words()
             messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(random_words=', '.join(random_words), **method)}]
-            prompts.append((method, random_words, messages))
+            prompts.append((method, random_words, messages, tokenizer))
     return prompts
 
 def process_prompt(args):
-    method, random_words, messages, model = args
-    answer = get_llm_response(messages, model, **SAMPLER)
+    method, random_words, messages, model, tokenizer = args
+    if tokenizer:
+        chat_template = tokenizer.apply_chat_template(messages, tokenize=False)
+        answer = get_llm_response([{"role": "user", "content": chat_template}], model, **SAMPLER)
+    else:
+        answer = get_llm_response(messages, model, **SAMPLER)
     idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': model, 'random_words': random_words}
     return [idea]
 
-def main(model: str, num_iterations: int = 5, num_parallel: int = 4):
+def main(model: str, num_iterations: int = 5, num_parallel: int = 4, tokenizer: str = None):
     """
     Generate creative world ideas using AI.
 
@@ -161,15 +166,20 @@ def main(model: str, num_iterations: int = 5, num_parallel: int = 4):
         model (str): The AI model to use for generation.
         num_iterations (int): Number of iterations per technique. Default is 5.
         num_parallel (int): Number of parallel threads to use. Default is 4.
+        tokenizer (str): Optional. The name of the HuggingFace tokenizer to use for pre-processing.
     """
+    tokenizer_instance = None
+    if tokenizer:
+        tokenizer_instance = AutoTokenizer.from_pretrained(tokenizer)
+        tokenizer_instance.bos_token = ''
     output_filename = get_output_filename(model, 'ideas')
     outf = open(output_filename, 'a')
 
-    prompts = generate_prompts(num_iterations)
+    prompts = generate_prompts(num_iterations, tokenizer_instance)
     total_prompts = len(prompts)
 
     with ThreadPoolExecutor(max_workers=num_parallel) as executor:
-        futures = [executor.submit(process_prompt, (method, random_words, messages, model)) for method, random_words, messages in prompts]
+        futures = [executor.submit(process_prompt, (method, random_words, messages, model, tokenizer_instance)) for method, random_words, messages, _ in prompts]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
