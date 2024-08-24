@@ -80,11 +80,11 @@ def main():
         # Previous and Next page buttons
         col1_1, col1_2, col1_3 = st.columns([1, 3, 1])
         with col1_1:
-            if st.button('< Prev Page') and current_page > 0:
+            if st.button('⬅️ Prev Page') and current_page > 0:
                 st.session_state.current_page -= 1
                 current_page = st.session_state.current_page
         with col1_3:
-            if st.button('Next Page >') and current_page < total_pages - 1:
+            if st.button('Next Page ➡️') and current_page < total_pages - 1:
                 st.session_state.current_page += 1
                 current_page = st.session_state.current_page        
         with col1_2:
