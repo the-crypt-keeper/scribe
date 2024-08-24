@@ -82,19 +82,13 @@ def main():
         with col1_1:
             if st.button('< Prev Page') and current_page > 0:
                 st.session_state.current_page -= 1
-                st.experimental_rerun()
-        with col1_2:
-            st.write(f"Page {current_page + 1} of {total_pages}")
+                current_page = st.session_state.current_page
         with col1_3:
             if st.button('Next Page >') and current_page < total_pages - 1:
                 st.session_state.current_page += 1
-                st.experimental_rerun()
-
-        # Ensure the selected world is visible when changed from detail panel
-        selected_page = st.session_state.selected_world // items_per_page
-        if selected_page != current_page:
-            st.session_state.current_page = selected_page
-            st.experimental_rerun()
+                current_page = st.session_state.current_page        
+        with col1_2:
+            st.write(f"Page {current_page + 1} of {total_pages}")
 
         # Display worlds for the current page
         start_idx = current_page * items_per_page
@@ -110,7 +104,7 @@ def main():
             with col1_2:
                 if st.button('Jump', key=f'jump_{index}'):
                     st.session_state.selected_world = index
-                    st.experimental_rerun()
+                    st.rerun()
 
     with col2:
         st.subheader("World Details")
@@ -119,14 +113,23 @@ def main():
         col2_1, col2_2, col2_3 = st.columns([1, 3, 1])
         with col2_1:
             if st.button('< Previous') and st.session_state.selected_world > 0:
-                st.session_state.selected_world -= 1
-                st.experimental_rerun()
+                st.session_state.selected_world -= 1                                    
+                # Ensure the selected world is visible when changed from detail panel
+                selected_page = st.session_state.selected_world // items_per_page
+                if selected_page != current_page:
+                    st.session_state.current_page = selected_page
+                st.rerun()
+                
         with col2_2:
             st.write(f"**{selected_world['world_name']}**")
         with col2_3:
             if st.button('Next >') and st.session_state.selected_world < len(merged_df) - 1:
-                st.session_state.selected_world += 1
-                st.experimental_rerun()
+                st.session_state.selected_world += 1                    
+                # Ensure the selected world is visible when changed from detail panel
+                selected_page = st.session_state.selected_world // items_per_page
+                if selected_page != current_page:
+                    st.session_state.current_page = selected_page
+                st.rerun()                
 
         for key, value in selected_world.items():
             if key != 'world_name':
