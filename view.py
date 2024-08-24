@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import sys
+import math
 from typing import List, Dict
 
 @st.cache_data
@@ -59,22 +60,53 @@ def main():
     # Create and cache the merged dataframe
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
 
-    # Initialize session state for selected world
+    # Initialize session state for selected world and current page
     if 'selected_world' not in st.session_state:
         st.session_state.selected_world = 0
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = 0
 
     # Create two columns for the layout
     col1, col2 = st.columns([1, 3])
 
     with col1:
         st.subheader("World List")
-        for index, world in merged_df.iterrows():
+        
+        # Pagination
+        items_per_page = 10
+        total_pages = math.ceil(len(merged_df) / items_per_page)
+        current_page = st.session_state.current_page
+        
+        # Ensure the selected world is visible
+        selected_page = st.session_state.selected_world // items_per_page
+        if selected_page != current_page:
+            current_page = selected_page
+            st.session_state.current_page = current_page
+
+        # Previous and Next page buttons
+        col1_1, col1_2, col1_3 = st.columns([1, 3, 1])
+        with col1_1:
+            if st.button('< Prev Page') and current_page > 0:
+                st.session_state.current_page -= 1
+                st.experimental_rerun()
+        with col1_2:
+            st.write(f"Page {current_page + 1} of {total_pages}")
+        with col1_3:
+            if st.button('Next Page >') and current_page < total_pages - 1:
+                st.session_state.current_page += 1
+                st.experimental_rerun()
+
+        # Display worlds for the current page
+        start_idx = current_page * items_per_page
+        end_idx = min(start_idx + items_per_page, len(merged_df))
+        for index in range(start_idx, end_idx):
+            world = merged_df.iloc[index]
             col1_1, col1_2 = st.columns([3, 1])
             with col1_1:
                 if index == st.session_state.selected_world:
-                    st.markdown(f"**{world['world_name']}**")
+                    st.markdown(f"**{index + 1}. {world['world_name']}**")
                 else:
-                    st.write(world['world_name'])
+                    st.write(f"{index + 1}. {world['world_name']}")
             with col1_2:
                 if st.button('Jump', key=f'jump_{index}'):
                     st.session_state.selected_world = index
