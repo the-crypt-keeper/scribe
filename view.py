@@ -166,7 +166,7 @@ def main():
         cols = st.columns(5)
         for i, (reaction, emoji) in enumerate(REACTIONS.items()):
             with cols[i]:
-                if st.checkbox(f"{emoji} {reaction.replace('_', ' ').title()}", value=world_reactions.get(reaction, False), key=f"reaction_{reaction}"):
+                if st.checkbox(f"{emoji} {reaction.replace('_', ' ').title()}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}"):
                     if str(selected_world['id']) not in reactions:
                         reactions[str(selected_world['id'])] = {}
                     reactions[str(selected_world['id'])][reaction] = True
