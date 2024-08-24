@@ -113,12 +113,12 @@ Use these random words for inspiration: {{random_words}}
 
 Consider the following details for each world:
 
-- Concept: Explain how the technique was applied to produce this idea
-- World Name: What is this world called
+- Concept: Explain how the technique was applied to produce this World.
+- World Name: Give the World a meaningful title.
 - Description: Describe the world and its inhabitants.
-- Twist: A deeper, hidden meaning or creative twist underlying this world.
+- Twist: An unexpected detail revealing a hidden depth to this world.
 
-Return 3 example worlds created with this technique."""
+Create 3 example worlds using this technique."""
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 MODEL = sys.argv[1]
