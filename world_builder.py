@@ -151,7 +151,7 @@ def generate_prompts(num_iterations, tokenizer=None):
 def process_prompt(args):
     method, random_words, messages, model, tokenizer = args
     if tokenizer:
-        chat_template = tokenizer.apply_chat_template(messages, tokenize=False)
+        chat_template = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, bos_token='')
         answer = get_llm_response([{"role": "user", "content": chat_template}], model, **SAMPLER)
     else:
         answer = get_llm_response(messages, model, **SAMPLER)
