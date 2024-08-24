@@ -118,17 +118,17 @@ def main():
         end_idx = min(start_idx + items_per_page, len(merged_df))
         for index in range(start_idx, end_idx):
             world = merged_df.iloc[index]
-            col1_1, col1_2, col1_3 = st.columns([3, 1, 1])
+            col1_1, col1_2 = st.columns([4, 1])
             with col1_1:
                 if index == st.session_state.selected_world:
-                    st.markdown(f"**{index + 1}. {world['world_name']}**")
+                    if st.button(f"**{index + 1}. {world['world_name']}**", key=f'world_{index}', use_container_width=True, type="primary"):
+                        st.session_state.selected_world = index
+                        st.rerun()
                 else:
-                    st.write(f"{index + 1}. {world['world_name']}")
+                    if st.button(f"{index + 1}. {world['world_name']}", key=f'world_{index}', use_container_width=True):
+                        st.session_state.selected_world = index
+                        st.rerun()
             with col1_2:
-                if st.button('Jump', key=f'jump_{index}'):
-                    st.session_state.selected_world = index
-                    st.rerun()
-            with col1_3:
                 world_reactions = reactions.get(str(world['id']), {})
                 st.write(''.join([REACTIONS[r] for r in world_reactions if world_reactions[r]]))
 
