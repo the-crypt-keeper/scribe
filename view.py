@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import sys
 import math
+import os
 from typing import List, Dict
 
 @st.cache_data
@@ -38,6 +39,25 @@ def load_prepare_data(file_path):
     with open(file_path, 'r') as f:
         return json.load(f)
 
+@st.cache_resource
+def load_reactions():
+    if os.path.exists('reactions.json'):
+        with open('reactions.json', 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_reactions(reactions):
+    with open('reactions.json', 'w') as f:
+        json.dump(reactions, f)
+
+REACTIONS = {
+    'star': '⭐',
+    'flame': '🔥',
+    'poop': '💩',
+    'thumbs_up': '👍',
+    'thumbs_down': '👎'
+}
+
 def main():
     st.set_page_config(layout="wide", page_title='World Builder Data Viewer')
     st.markdown("""
@@ -59,6 +79,9 @@ def main():
 
     # Create and cache the merged dataframe
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
+
+    # Load reactions
+    reactions = load_reactions()
 
     # Initialize session state for selected world and current page
     if 'selected_world' not in st.session_state:
@@ -95,7 +118,7 @@ def main():
         end_idx = min(start_idx + items_per_page, len(merged_df))
         for index in range(start_idx, end_idx):
             world = merged_df.iloc[index]
-            col1_1, col1_2 = st.columns([3, 1])
+            col1_1, col1_2, col1_3 = st.columns([3, 1, 1])
             with col1_1:
                 if index == st.session_state.selected_world:
                     st.markdown(f"**{index + 1}. {world['world_name']}**")
@@ -105,6 +128,9 @@ def main():
                 if st.button('Jump', key=f'jump_{index}'):
                     st.session_state.selected_world = index
                     st.rerun()
+            with col1_3:
+                world_reactions = reactions.get(str(world['id']), {})
+                st.write(''.join([REACTIONS[r] for r in world_reactions if world_reactions[r]]))
 
     with col2:
         st.subheader("World Details")
@@ -134,6 +160,20 @@ def main():
         for key, value in selected_world.items():
             if key != 'world_name':
                 st.write(f"**{key.capitalize()}:** {value}")
+
+        st.subheader("Reactions")
+        world_reactions = reactions.get(str(selected_world['id']), {})
+        cols = st.columns(5)
+        for i, (reaction, emoji) in enumerate(REACTIONS.items()):
+            with cols[i]:
+                if st.checkbox(f"{emoji} {reaction.replace('_', ' ').title()}", value=world_reactions.get(reaction, False), key=f"reaction_{reaction}"):
+                    if str(selected_world['id']) not in reactions:
+                        reactions[str(selected_world['id'])] = {}
+                    reactions[str(selected_world['id'])][reaction] = True
+                else:
+                    if str(selected_world['id']) in reactions and reaction in reactions[str(selected_world['id'])]:
+                        reactions[str(selected_world['id'])][reaction] = False
+        save_reactions(reactions)
 
         with st.expander('DEBUG: Original Idea'):
             original_idea = get_original_idea(cleaner_data, selected_world['idea_id'])
