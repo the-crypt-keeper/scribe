@@ -23,10 +23,10 @@ TECHNIQUES = [
     "title": "Timeline Bend",
     "summary": "Imagine timelines that are similar to our own but have had a significant difference somewhere along their paths.",
     "examples": [
-          "The Guns of the South (1992) by Harry Turtledove: A novel that explores a world where the Confederacy won the American Civil War and the Industrial Revolution never occurred.",
-          "The Shannara Series (1977) by Terry Brooks: A series of novels that explores a world where magic and technology coexist, and ancient civilizations like the Elves and Dwarves have survived to the present day."
-          "The Man in the High Castle (1962) by Philip K. Dick: A novel that explores a world where the Axis powers won World War II, and the United States is divided between the Greater Nazi Reich and the Japanese Pacific States.",
-          "The Yiddish Policemen's Union (2007) by Michael Chabon: A novel that explores a world where Israel was destroyed in 1948, and Jewish refugees settled in Alaska, creating a unique cultural and linguistic identity."
+      "The Guns of the South (1992) by Harry Turtledove: A novel that explores a world where the Confederacy won the American Civil War and the Industrial Revolution never occurred.",
+      "The Shannara Series (1977) by Terry Brooks: A series of novels that explores a world where magic and technology coexist, and ancient civilizations like the Elves and Dwarves have survived to the present day."
+      "The Man in the High Castle (1962) by Philip K. Dick: A novel that explores a world where the Axis powers won World War II, and the United States is divided between the Greater Nazi Reich and the Japanese Pacific States.",
+      "The Yiddish Policemen's Union (2007) by Michael Chabon: A novel that explores a world where Israel was destroyed in 1948, and Jewish refugees settled in Alaska, creating a unique cultural and linguistic identity."
     ]
   },
   {
@@ -90,7 +90,16 @@ TECHNIQUES = [
       "The Percy Jackson and the Olympians (series, 2005): A series of novels by Rick Riordan that features a world where Greek mythology is real and gods and monsters still exist.",
       "The Iron Druid Chronicles (series, 2011): A series of novels by Kevin Hearne that features a world where various mythologies are real and a 2,000-year-old druid battles supernatural creatures."
     ]
-  }
+  },
+  {
+    "title": "Technological Singularity",
+    "summary": "This method involves creating a world where a significant technological breakthrough has radically altered society and human capabilities.",
+    "examples": [
+      "Accelerando (2005) by Charles Stross: A novel that explores a world where artificial intelligence and nanotechnology have led to a post-human civilization.",
+      "Her (2013) by Spike Jonze: A film that depicts a near-future world where artificial intelligence has become so advanced that humans can form emotional relationships with AI entities.",
+      "Neuromancer (1984) by William Gibson: A novel that explores a world where cyberspace and virtual reality have become integral parts of human existence."
+    ]
+  }  
 ]
 
 BASIC_WORD_LIST = []
@@ -116,7 +125,7 @@ Consider the following details for each world:
 - Concept: Explain how the technique was applied to produce this World.
 - World Name: Give the World a meaningful title.
 - Description: Describe the world and its inhabitants.
-- Twist: An unexpected detail revealing a hidden depth to this world.
+- Twist: An unexpected, interesting and non-obvious detail that reveals a hidden depth to this world.
 
 Create 3 example worlds using this technique."""
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
