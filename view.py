@@ -76,12 +76,6 @@ def main():
         items_per_page = 10
         total_pages = math.ceil(len(merged_df) / items_per_page)
         current_page = st.session_state.current_page
-        
-        # Ensure the selected world is visible
-        selected_page = st.session_state.selected_world // items_per_page
-        if selected_page != current_page:
-            current_page = selected_page
-            st.session_state.current_page = current_page
 
         # Previous and Next page buttons
         col1_1, col1_2, col1_3 = st.columns([1, 3, 1])
@@ -95,6 +89,12 @@ def main():
             if st.button('Next Page >') and current_page < total_pages - 1:
                 st.session_state.current_page += 1
                 st.experimental_rerun()
+
+        # Ensure the selected world is visible when changed from detail panel
+        selected_page = st.session_state.selected_world // items_per_page
+        if selected_page != current_page:
+            st.session_state.current_page = selected_page
+            st.experimental_rerun()
 
         # Display worlds for the current page
         start_idx = current_page * items_per_page
