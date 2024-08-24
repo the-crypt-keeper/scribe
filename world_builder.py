@@ -2,13 +2,13 @@ import time
 from utils import get_llm_response, get_output_filename
 import re
 import random
-import sys
 import json
 from jinja2 import Template
 import nltk
 from nltk.corpus import words, brown
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
+import fire
 
 TECHNIQUES = [
   {
@@ -130,9 +130,6 @@ Consider the following details for each world:
 Create 3 example worlds using this technique."""
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
-MODEL = sys.argv[1]
-NUM_ITERATIONS = 5
-NUM_PARALLEL = 4  # Default number of parallel threads
 SAMPLER = {
     'temperature': 1.0,
     'min_p': 0.05,
@@ -151,20 +148,32 @@ def generate_prompts():
     return prompts
 
 def process_prompt(args):
-    method, random_words, messages = args
-    answer = get_llm_response(messages, MODEL, **SAMPLER)
-    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': MODEL, 'random_words': random_words}
+    method, random_words, messages, model = args
+    answer = get_llm_response(messages, model, **SAMPLER)
+    idea = {'timestamp': time.time(), 'idea': answer, 'method': method['title'], 'model': model, 'random_words': random_words}
     return [idea]
 
-def main():
-    output_filename = get_output_filename(MODEL, 'ideas')
+def main(model: str, num_iterations: int = 5, num_parallel: int = 4):
+    """
+    Generate creative world ideas using AI.
+
+    Args:
+        model (str): The AI model to use for generation.
+        num_iterations (int): Number of iterations per technique. Default is 5.
+        num_parallel (int): Number of parallel threads to use. Default is 4.
+    """
+    global NUM_ITERATIONS, NUM_PARALLEL
+    NUM_ITERATIONS = num_iterations
+    NUM_PARALLEL = num_parallel
+
+    output_filename = get_output_filename(model, 'ideas')
     outf = open(output_filename, 'a')
 
     prompts = generate_prompts()
     total_prompts = len(prompts)
 
     with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
-        futures = [executor.submit(process_prompt, prompt) for prompt in prompts]
+        futures = [executor.submit(process_prompt, (method, random_words, messages, model)) for method, random_words, messages in prompts]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
@@ -175,5 +184,6 @@ def main():
 
     outf.close()
 
-load_dictionaries()
-main()
+if __name__ == "__main__":
+    load_dictionaries()
+    fire.Fire(main)
