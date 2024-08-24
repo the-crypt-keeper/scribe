@@ -138,10 +138,10 @@ SAMPLER = {
     'min_tokens': 10 
 }
 
-def generate_prompts():
+def generate_prompts(num_iterations):
     prompts = []
     for method in TECHNIQUES:
-        for _ in range(NUM_ITERATIONS):
+        for _ in range(num_iterations):
             random_words = get_random_words()
             messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(random_words=', '.join(random_words), **method)}]
             prompts.append((method, random_words, messages))
@@ -162,17 +162,13 @@ def main(model: str, num_iterations: int = 5, num_parallel: int = 4):
         num_iterations (int): Number of iterations per technique. Default is 5.
         num_parallel (int): Number of parallel threads to use. Default is 4.
     """
-    global NUM_ITERATIONS, NUM_PARALLEL
-    NUM_ITERATIONS = num_iterations
-    NUM_PARALLEL = num_parallel
-
     output_filename = get_output_filename(model, 'ideas')
     outf = open(output_filename, 'a')
 
-    prompts = generate_prompts()
+    prompts = generate_prompts(num_iterations)
     total_prompts = len(prompts)
 
-    with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
+    with ThreadPoolExecutor(max_workers=num_parallel) as executor:
         futures = [executor.submit(process_prompt, (method, random_words, messages, model)) for method, random_words, messages in prompts]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
