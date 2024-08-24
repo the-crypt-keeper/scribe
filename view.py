@@ -3,8 +3,6 @@ import pandas as pd
 import json
 import sys
 from typing import List, Dict
-from st_aggrid import AgGrid, GridUpdateMode
-from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 @st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -23,6 +21,9 @@ def create_merged_dataframe(cleaner_data, prepare_data):
 
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
+
+    # Add world_name field
+    merged_df['world_name'] = merged_df.apply(lambda row: f"{row['concept']} - {row['twist']}", axis=1)
 
     return merged_df
 
@@ -61,42 +62,49 @@ def main():
     # Create and cache the merged dataframe
     merged_df = create_merged_dataframe(cleaner_data, prepare_data)
 
-    # Display the merged DataFrame using AgGrid
-    gb = GridOptionsBuilder.from_dataframe(merged_df)
-    gb.configure_selection(selection_mode='single', use_checkbox=False)
-    gb.configure_column("concept", header_name="Concept", width="300")
-    gb.configure_column("twist", header_name="Twist", width="300")
-    gb.configure_column("description", header_name="Description")
-    gb.configure_column("idea_id", header_name="Idea ID", hide=True)
-    gb.configure_column("id", hide=True)    
-    gridOptions = gb.build()
+    # Initialize session state for selected world
+    if 'selected_world' not in st.session_state:
+        st.session_state.selected_world = 0
 
-    grid_response = AgGrid(
-        merged_df,
-        gridOptions=gridOptions,
-        height=400,
-        width='100%',
-        data_return_mode='AS_INPUT',
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
-        fit_columns_on_grid_load=True,
-    )
+    # Create two columns for the layout
+    col1, col2 = st.columns([1, 3])
 
-    selected_row = grid_response['selected_rows'][0] if grid_response['selected_rows'] else None
+    with col1:
+        st.subheader("World List")
+        for index, world in merged_df.iterrows():
+            col1_1, col1_2 = st.columns([3, 1])
+            with col1_1:
+                if index == st.session_state.selected_world:
+                    st.markdown(f"**{world['world_name']}**")
+                else:
+                    st.write(world['world_name'])
+            with col1_2:
+                if st.button('Jump', key=f'jump_{index}'):
+                    st.session_state.selected_world = index
+                    st.experimental_rerun()
 
-    # Display selected record details
-    if selected_row:
-        st.subheader("Selected Record Details:")
+    with col2:
+        st.subheader("World Details")
+        selected_world = merged_df.iloc[st.session_state.selected_world]
         
-        selected_row_dict = {k: v for k, v in selected_row.items() if k != '_selectedRowNodeInfo'}
-        for key, value in selected_row_dict.items():
-            col1, col2 = st.columns([1, 9])
-            with col1:
-                st.write(f"**{key.capitalize()}:**")
-            with col2:
-                st.write(value)
-        
+        col2_1, col2_2, col2_3 = st.columns([1, 3, 1])
+        with col2_1:
+            if st.button('< Previous') and st.session_state.selected_world > 0:
+                st.session_state.selected_world -= 1
+                st.experimental_rerun()
+        with col2_2:
+            st.write(f"**{selected_world['world_name']}**")
+        with col2_3:
+            if st.button('Next >') and st.session_state.selected_world < len(merged_df) - 1:
+                st.session_state.selected_world += 1
+                st.experimental_rerun()
+
+        for key, value in selected_world.items():
+            if key != 'world_name':
+                st.write(f"**{key.capitalize()}:** {value}")
+
         with st.expander('DEBUG: Original Idea'):
-            original_idea = get_original_idea(cleaner_data, selected_row['idea_id'])
+            original_idea = get_original_idea(cleaner_data, selected_world['idea_id'])
             st.json(original_idea)
 
 if __name__ == "__main__":
