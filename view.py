@@ -105,9 +105,22 @@ def main():
     title_world_name.title(f"#{st.session_state.selected_world} {selected_world['world_name']}")
     
     # Display world details
-    for key, value in selected_world.items():
-        if key not in ['id', 'idea_id', 'world_name']:
-            st.markdown(f"**{key.replace('_',' ').title()}:** {value}")
+    detail_order = ['concept', 'description', 'twist', 'sensory', 'story_seeds', 'challenges_opportunities']
+    for key in detail_order:
+        if key in selected_world:
+            if key == 'story_seeds':
+                st.markdown(f"**{key.replace('_',' ').title()}:**")
+                for seed in selected_world[key]:
+                    st.markdown(f"- {seed}")
+            else:
+                st.markdown(f"**{key.replace('_',' ').title()}:** {selected_world[key]}")
+
+    # Display model and method in two columns
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"**Model:** {selected_world['model']}")
+    with col2:
+        st.markdown(f"**Method:** {selected_world['method']}")
 
     # Reactions
     world_reactions = reactions.get(str(selected_world['id']), {})
