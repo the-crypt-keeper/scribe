@@ -157,7 +157,7 @@ def main():
 
         for key, value in selected_world.items():
             if key not in ['id', 'world_name']:
-                st.write(f"**{key.replace('_',' ').title()}:** {value}")
+                st.markdown(f"**{key.replace('_',' ').title()}:** {value}")
 
         world_reactions = reactions.get(str(selected_world['id']), {})
         cols = st.columns(5)
@@ -175,7 +175,7 @@ def main():
             st.rerun()
 
         with st.expander('DEBUG: Original Idea'):
-            original_idea = get_original_idea(cleaner_data, selected_world['idea_id'])
+            original_idea = get_original_idea(raw_prepare_data['ideas'], selected_world['idea_id'])
             st.json(original_idea)
 
 if __name__ == "__main__":

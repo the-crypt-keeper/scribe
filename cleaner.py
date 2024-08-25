@@ -23,22 +23,22 @@ SYSTEM_PROMPT = """The text provided by the user describes a number of Worlds, p
 
 Convert it to a list of JSON object with the following schema:
 
-{ 'worlds': [
+{ "worlds": [
     {
-        world_name: "<The World Name>",
-        concept: "<The way in which the concept was applied to create this world>",
-        description: "<Description of the world>",
-        twist: "<Unique Twist that makes this world interesting>",
-        story_seeds: "<Story ideas or conflicts that could arise in this world>",
-        sensory: "<Specific sensory information about the world>",
-        challenges_opportunities: "<Difficulties or opportunities faced by inhabitants of this world>"
+        "world_name": "<The World Name>",
+        "concept": "<The way in which the concept was applied to create this world>",
+        "description": "<Description of the world>",
+        "twist": "<Unique Twist that makes this world interesting>",
+        "story_seeds": "<Story ideas or conflicts that could arise in this world>",
+        "sensory": "<Specific sensory information about the world>",
+        "challenges_opportunities": "<Difficulties or opportunities faced by inhabitants of this world>"
     },
     {
-        ... same as above for next world
+        ... same as above for next world ...
     }
 ]}
 
-If the user text does not contain a list of worlds, return an empty list: `{ 'worlds': [] }`
+If the user text does not contain a list of worlds, return an empty list: `{ "worlds": [] }`
 
 ### INPUT:
 """

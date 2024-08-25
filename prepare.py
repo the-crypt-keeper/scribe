@@ -28,11 +28,12 @@ def read_and_process_file(input_filename: str) -> tuple[List[WorldID], List[Dict
                 for world in data['clean']['worlds']:
                     world['id'] = str(uuid.uuid4())
                     world['idea_id'] = idea_id
+                    for key, value in world.items():
+                        if isinstance(value, list):
+                            world[key] = '\n'.join([f"{idx+1}. {v}" for idx,v in enumerate(value)])
+                        if isinstance(value, dict):
+                            world[key] = '\n'.join([f"* {k}: {v}" for k,v in value.items()])
                     worlds.append(WorldID(**world))
-                    
-                if len(data['clean']['worlds']) != 3:
-                    print('---')
-                    print(data['result'])
 
     return worlds, errors, ideas
 
