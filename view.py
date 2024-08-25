@@ -4,6 +4,7 @@ import json
 import sys
 import math
 import os
+import random
 from typing import List, Dict
 
 @st.cache_data
@@ -23,6 +24,9 @@ def create_merged_dataframe(cleaner_data, prepare_data):
 
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
+
+    # Shuffle the DataFrame
+    merged_df = merged_df.sample(frac=1, random_state=random.randint(1, 1000)).reset_index(drop=True)
 
     return merged_df
 
