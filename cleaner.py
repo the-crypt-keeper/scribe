@@ -6,13 +6,14 @@ from fire import Fire
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from pydantic import BaseModel, Field
+from typing import List
 
 class World(BaseModel):
     world_name: str = Field(description='The World Name')
     concept: str = Field(description='The way in which the concept was applied to create this world')
     description: str = Field(description = 'Description of the world')
     twist: str = Field(description = 'Unique Twist that makes this world interesting')
-    story_seeds: str = Field(description = 'Story ideas or conflicts that could arise in this world')
+    story_seeds: List[str] = Field(description = 'Story ideas or conflicts that could arise in this world')
     sensory: str = Field(description='Specific sensory information about the world')
     challenges_opportunities: str = Field(description='Difficulties or opportunities faced by inhabitants of this world')
     
@@ -29,7 +30,7 @@ Convert it to a list of JSON object with the following schema:
         "concept": "<The way in which the concept was applied to create this world>",
         "description": "<Description of the world>",
         "twist": "<Unique Twist that makes this world interesting>",
-        "story_seeds": "<Story ideas or conflicts that could arise in this world>",
+        "story_seeds": ["<A story idea that could arise in this world>","<another story idea...>"],
         "sensory": "<Specific sensory information about the world>",
         "challenges_opportunities": "<Difficulties or opportunities faced by inhabitants of this world>"
     },

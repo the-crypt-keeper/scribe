@@ -33,11 +33,6 @@ def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], L
                         for world in data['clean']['worlds']:
                             world['id'] = hashlib.md5(data['result'].encode()).hexdigest()
                             world['idea_id'] = global_idea_id
-                            for key, value in world.items():
-                                if isinstance(value, list):
-                                    world[key] = '\n'.join([f"{idx+1}. {v}" for idx,v in enumerate(value)])
-                                if isinstance(value, dict):
-                                    world[key] = '\n'.join([f"* {k}: {v}" for k,v in value.items()])
                             worlds.append(WorldID(**world))
                             file_world_count += 1
 

@@ -85,26 +85,25 @@ def main():
     if 'selected_world' not in st.session_state:
         st.session_state.selected_world = 0
 
-    selected_world = merged_df.iloc[st.session_state.selected_world]
-
     # Display world name as heading
-    st.title(selected_world['world_name'])
+    title_world_name = st.empty()
 
     # Row of buttons
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button('⬅️ Previous') and st.session_state.selected_world > 0:
+        if st.button('⬅️ Previous', disabled=(st.session_state.selected_world == 0)):
             st.session_state.selected_world -= 1
-            st.rerun()
     with col2:
         if st.button('🎲 Random'):
             st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
-            st.rerun()
     with col3:
-        if st.button('Next ➡️') and st.session_state.selected_world < len(merged_df) - 1:
+        if st.button('Next ➡️', disabled=(st.session_state.selected_world == len(merged_df) - 1)):
             st.session_state.selected_world += 1
-            st.rerun()
 
+    # Display world name as heading
+    selected_world = merged_df.iloc[st.session_state.selected_world]
+    title_world_name.title(selected_world['world_name'])
+    
     # Display world details
     for key, value in selected_world.items():
         if key not in ['id', 'idea_id', 'world_name']:
