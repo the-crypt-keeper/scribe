@@ -1,8 +1,5 @@
 import time
 from utils import get_llm_response, get_output_filename
-import re
-import random
-import sys
 import json
 from jinja2 import Template
 from fire import Fire
@@ -15,13 +12,36 @@ class World(BaseModel):
     concept: str = Field(description='The way in which the concept was applied to create this world')
     description: str = Field(description = 'Description of the world')
     twist: str = Field(description = 'Unique Twist that makes this world interesting')
+    story_seeds: str = Field(description = 'Story ideas or conflicts that could arise in this world')
+    sensory: str = Field(description='Specific sensory information about the world')
+    challenges_opportunities: str = Field(description='Difficulties or opportunities faced by inhabitants of this world')
     
 class WorldList(BaseModel):
     worlds: list[World]
 
-SYSTEM_PROMPT = "Process the text provided by the user, extracting a list of JSON objects with the following schema:\n\n"
-SYSTEM_PROMPT += json.dumps(World.model_json_schema())
-SYSTEM_PROMPT += "\n\n{{text}}"
+SYSTEM_PROMPT = """The text provided by the user describes a number of Worlds, providing sections of information for each one.
+
+Convert it to a list of JSON object with the following schema:
+
+{ 'worlds': [
+    {
+        world_name: "<The World Name>",
+        concept: "<The way in which the concept was applied to create this world>",
+        description: "<Description of the world>",
+        twist: "<Unique Twist that makes this world interesting>",
+        story_seeds: "<Story ideas or conflicts that could arise in this world>",
+        sensory: "<Specific sensory information about the world>",
+        challenges_opportunities: "<Difficulties or opportunities faced by inhabitants of this world>"
+    },
+    {
+        ... same as above for next world
+    }
+]}
+
+If the user text does not contain a list of worlds, return an empty list: `{ 'worlds': [] }`
+
+### INPUT:
+"""
 
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
@@ -34,7 +54,9 @@ def process_prompt(data, text_key):
         return data
 
     user_text = data.get(text_key, '')
-    messages = [{'role': 'user', 'content': SYSTEM_TEMPLATE.render(text=user_text)}]    
+    if user_text.strip() == '': return None
+    
+    messages = [{'role': 'user', 'content': SYSTEM_PROMPT+user_text}]
     sampler = { 'temperature': 0.0, 'max_tokens': 3072 }
     sampler['guided_json'] = SCHEMA
     
@@ -66,7 +88,7 @@ def run(input_file: str, key_name: str = 'result'):
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
                 result = future.result()
-                outf.write(json.dumps(result) + '\n')
+                if result is not None: outf.write(json.dumps(result) + '\n')
                 pbar.update(1)
 
     outf.close()

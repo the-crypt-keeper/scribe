@@ -22,11 +22,18 @@ def read_and_process_file(input_filename: str) -> tuple[List[World], List[Dict]]
 
             if 'clean_error' in data:
                 errors.append({'idea_id': idea_id, 'error': data['clean_error']})
-            elif 'clean' in data and 'worlds' in data['clean']:
+            elif 'clean' in data:
+                if 'worlds' not in data['clean']:
+                    errors.append({'idea_id': idea_id, 'error': 'no worlds'})
+                    
                 for world in data['clean']['worlds']:
                     world['id'] = str(uuid.uuid4())
                     world['idea_id'] = idea_id
                     worlds.append(World(**world))
+                    
+                if len(data['clean']['worlds']) != 3:
+                    print('---')
+                    print(data['result'])
 
     return worlds, errors
 
@@ -44,7 +51,7 @@ def main():
     print(f"Total number of output worlds: {len(worlds)}")
     print(f"Prepared data written to {output_filename}")
     
-    if errors:
+    if len(errors) > 0:
         print("\nRecords with clean_error:")
         for error in errors:
             print(f"Idea ID: {error['idea_id']}, Error: {error['error']}")

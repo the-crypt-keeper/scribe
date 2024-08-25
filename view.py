@@ -59,7 +59,7 @@ REACTIONS = {
 }
 
 def main():
-    st.set_page_config(layout="wide", page_title='World Builder Data Viewer')
+    st.set_page_config(page_title='World Builder Data Viewer')
     st.markdown("""
             <style>
                 .block-container {
@@ -67,6 +67,9 @@ def main():
                         padding-bottom: 0rem;
                         padding-left: 1rem;
                         padding-right: 1rem;
+                }
+                html {
+                    font-size: 1.5em;
                 }
             </style>
             """, unsafe_allow_html=True)   
@@ -96,22 +99,22 @@ def main():
         st.subheader("World List")
         
         # Pagination
-        items_per_page = 10
+        items_per_page = 6
         total_pages = math.ceil(len(merged_df) / items_per_page)
         current_page = st.session_state.current_page
 
         # Previous and Next page buttons
-        col1_1, col1_2, col1_3 = st.columns([1, 3, 1])
+        col1_1, col1_2, col1_3 = st.columns([1, 1, 1])
         with col1_1:
-            if st.button('⬅️ Page') and current_page > 0:
+            if st.button('⬅️') and current_page > 0:
                 st.session_state.current_page -= 1
                 current_page = st.session_state.current_page
         with col1_3:
-            if st.button('Page ➡️') and current_page < total_pages - 1:
+            if st.button('➡️') and current_page < total_pages - 1:
                 st.session_state.current_page += 1
                 current_page = st.session_state.current_page        
         with col1_2:
-            st.write(f"Page {current_page + 1} of {total_pages}")
+            st.write(f"#{current_page + 1} of {total_pages}")
 
         # Display worlds for the current page
         start_idx = current_page * items_per_page
@@ -125,7 +128,7 @@ def main():
                         st.session_state.selected_world = index
                         st.rerun()
                 else:
-                    if st.button(f"{index + 1}. {world['world_name']}", key=f'world_{index}', use_container_width=True):
+                    if st.button(f"**{index + 1}. {world['world_name']}**", key=f'world_{index}', use_container_width=True):
                         st.session_state.selected_world = index
                         st.rerun()
             with col1_2:
@@ -136,7 +139,7 @@ def main():
         st.subheader("World Details")
         selected_world = merged_df.iloc[st.session_state.selected_world]
         
-        col2_1, col2_2, col2_3 = st.columns([1, 3, 1])
+        col2_1, col2_2, col2_3 = st.columns([1, 2, 1])
         with col2_1:
             if st.button('< Previous') and st.session_state.selected_world > 0:
                 st.session_state.selected_world -= 1                                    
@@ -158,16 +161,15 @@ def main():
                 st.rerun()                
 
         for key, value in selected_world.items():
-            if key != 'world_name':
+            if key not in ['id', 'world_name']:
                 st.write(f"**{key.capitalize()}:** {value}")
 
-        st.subheader("Reactions")
         world_reactions = reactions.get(str(selected_world['id']), {})
         cols = st.columns(5)
         reaction_changed = False
         for i, (reaction, emoji) in enumerate(REACTIONS.items()):
             with cols[i]:
-                new_value = st.checkbox(f"{emoji} {reaction.replace('_', ' ').title()}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}")
+                new_value = st.checkbox(f"{emoji}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}")
                 if new_value != world_reactions.get(reaction, False):
                     reaction_changed = True
                     if str(selected_world['id']) not in reactions:
