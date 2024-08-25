@@ -39,8 +39,7 @@ def read_and_process_file(input_filename: str) -> tuple[List[WorldID], List[Dict
 
 def main():
     input_filename = sys.argv[1]
-    output_filename = input_filename.replace('cleaner','prepare')
-    if output_filename == input_filename: output_filename = 'prepare.json'
+    output_filename = 'prepare.json'
 
     worlds, errors, ideas = read_and_process_file(input_filename)
     with open(output_filename, 'w') as f:
