@@ -13,12 +13,13 @@ def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], L
     worlds = []
     errors = []
     ideas = []
-    global_idea_id = 1
+    global_idea_id = 0
 
     for input_filename in input_filenames:
         with open(input_filename, 'r') as f:
             for line in f:
                 data = json.loads(line)
+                data['idea_id'] = global_idea_id
                 ideas.append(data)
 
                 if 'clean_error' in data:
@@ -26,16 +27,16 @@ def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], L
                 elif 'clean' in data:
                     if 'worlds' not in data['clean']:
                         errors.append({'idea_id': global_idea_id, 'error': 'no worlds'})
-                    
-                    for world in data['clean']['worlds']:
-                        world['id'] = hashlib.md5(data['result'].encode()).hexdigest()
-                        world['idea_id'] = global_idea_id
-                        for key, value in world.items():
-                            if isinstance(value, list):
-                                world[key] = '\n'.join([f"{idx+1}. {v}" for idx,v in enumerate(value)])
-                            if isinstance(value, dict):
-                                world[key] = '\n'.join([f"* {k}: {v}" for k,v in value.items()])
-                        worlds.append(WorldID(**world))
+                    else:                        
+                        for world in data['clean']['worlds']:
+                            world['id'] = hashlib.md5(data['result'].encode()).hexdigest()
+                            world['idea_id'] = global_idea_id
+                            for key, value in world.items():
+                                if isinstance(value, list):
+                                    world[key] = '\n'.join([f"{idx+1}. {v}" for idx,v in enumerate(value)])
+                                if isinstance(value, dict):
+                                    world[key] = '\n'.join([f"* {k}: {v}" for k,v in value.items()])
+                            worlds.append(WorldID(**world))
 
                 global_idea_id += 1
 
