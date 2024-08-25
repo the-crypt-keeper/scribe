@@ -68,7 +68,7 @@ def main():
                         margin-top: 1rem;
                 }
                 html {
-                    font-size: 1.5em;
+                    font-size: 1.2em;
                 }
             </style>
             """, unsafe_allow_html=True)   
@@ -103,24 +103,6 @@ def main():
     # Display world name as heading
     selected_world = merged_df.iloc[st.session_state.selected_world]
     title_world_name.title(f"#{st.session_state.selected_world} {selected_world['world_name']}")
-    
-    # Display world details
-    detail_order = ['concept', 'description', 'twist', 'sensory', 'story_seeds', 'challenges_opportunities']
-    for key in detail_order:
-        if key in selected_world:
-            if key == 'story_seeds':
-                st.markdown(f"**{key.replace('_',' ').title()}:**")
-                for seed in selected_world[key]:
-                    st.markdown(f"- {seed}")
-            else:
-                st.markdown(f"**{key.replace('_',' ').title()}:** {selected_world[key]}")
-
-    # Display model and method in two columns
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"**Model:** {selected_world['model']}")
-    with col2:
-        st.markdown(f"**Method:** {selected_world['method']}")
 
     # Reactions
     world_reactions = reactions.get(str(selected_world['id']), {})
@@ -137,6 +119,25 @@ def main():
     if reaction_changed:
         save_reactions(reactions)
         st.rerun()
+            
+    # Display world details
+    detail_order = ['concept', 'description', 'twist', 'sensory', 'story_seeds', 'challenges_opportunities']
+    for key in detail_order:
+        if key in selected_world:
+            if key == 'story_seeds':
+                text = f"**{key.replace('_',' ').title()}:**\n"
+                for seed in selected_world[key]:
+                    text += f"- {seed}\n"
+                st.markdown(text)
+            else:
+                st.markdown(f"**{key.replace('_',' ').title()}:** {selected_world[key]}")
+
+    # Display model and method in two columns
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"**Model:** {selected_world['model']}")
+    with col2:
+        st.markdown(f"**Method:** {selected_world['method']}")
 
     with st.expander('DEBUG: Original Idea'):
         original_idea = get_original_idea(raw_prepare_data['ideas'], selected_world['idea_id'])
