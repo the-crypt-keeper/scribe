@@ -13,7 +13,7 @@ def create_merged_dataframe(cleaner_data, prepare_data):
     cleaner_info = [{
         'idea_id': i + 1,
         'model': item.get('model', '').replace('openai/', ''),
-        'method': item.get('title', ''),
+        'method': item.get('vars', {}).get('title'),
     } for i, item in enumerate(cleaner_data)]
 
     # Create DataFrame from prepare data
@@ -166,7 +166,7 @@ def main():
 
         for key, value in selected_world.items():
             if key not in ['id', 'world_name']:
-                st.write(f"**{key.capitalize()}:** {value}")
+                st.write(f"**{key.replace('_',' ').title()}:** {value}")
 
         world_reactions = reactions.get(str(selected_world['id']), {})
         cols = st.columns(5)

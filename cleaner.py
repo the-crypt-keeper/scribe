@@ -74,7 +74,7 @@ def process_prompt(data, text_key):
     return data
 
 def run(input_file: str, key_name: str = 'result'):
-    output_filename = get_output_filename(MODEL, 'cleaner')
+    output_filename = input_file.replace('ideas','cleaner')
     outf = open(output_filename, 'w')
 
     with open(input_file, 'r') as f:

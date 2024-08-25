@@ -2,17 +2,14 @@ import json
 import sys
 import uuid
 from typing import List, Dict
-from pydantic import BaseModel, Field
+from cleaner import World
+from pydantic import Field
 
-class World(BaseModel):
+class WorldID(World):
     id: str = Field(description='Unique identifier for the world')
-    world_name: str = Field(description='The World Name')
-    concept: str = Field(description='The way in which the concept was applied to create this world')
-    description: str = Field(description='Description of the world')
-    twist: str = Field(description='Unique Twist that makes this world interesting')
     idea_id: int = Field(description='ID of the original idea')
 
-def read_and_process_file(input_filename: str) -> tuple[List[World], List[Dict]]:
+def read_and_process_file(input_filename: str) -> tuple[List[WorldID], List[Dict]]:
     worlds = []
     errors = []
 
@@ -29,7 +26,7 @@ def read_and_process_file(input_filename: str) -> tuple[List[World], List[Dict]]
                 for world in data['clean']['worlds']:
                     world['id'] = str(uuid.uuid4())
                     world['idea_id'] = idea_id
-                    worlds.append(World(**world))
+                    worlds.append(WorldID(**world))
                     
                 if len(data['clean']['worlds']) != 3:
                     print('---')

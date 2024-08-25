@@ -162,17 +162,17 @@ SAMPLER = {
     'min_tokens': 10 
 }
 
-def generate_prompts(num_iterations, tokenizer=None):
+def generate_prompts(num_samples, tokenizer=None):
     prompts = []
-    for method in TECHNIQUES:
-        for _ in range(num_iterations):
-            vars = { 'random_words': ', '.join(get_random_words()), **method }
-            text = SYSTEM_TEMPLATE.render(**vars)            
-            messages = [{'role': 'user', 'content': text}]
-            if tokenizer:
-              vars['tokenizer'] = tokenizer.name_or_path
-              messages = [{"role": "user", "content": tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, bos_token='')}]            
-            prompts.append((messages, vars))
+    for _ in range(num_samples):
+        method = random.choice(TECHNIQUES)
+        vars = { 'random_words': ', '.join(get_random_words()), **method }
+        text = SYSTEM_TEMPLATE.render(**vars)            
+        messages = [{'role': 'user', 'content': text}]
+        if tokenizer:
+          vars['tokenizer'] = tokenizer.name_or_path
+          messages = [{"role": "user", "content": tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, bos_token='')}]            
+        prompts.append((messages, vars))
     return prompts
 
 def process_prompt(args):
@@ -184,7 +184,7 @@ def process_prompt(args):
     idea = {'timestamp': time.time(), 'model': model, 'result': answer, 'vars': vars}
     return [idea]
 
-def main(model: str, num_iterations: int = 5, num_parallel: int = 4, tokenizer: str = None):
+def main(model: str, num_samples: int = 50, num_parallel: int = 4, tokenizer: str = None):
     """
     Generate creative world ideas using AI.
 
@@ -199,7 +199,7 @@ def main(model: str, num_iterations: int = 5, num_parallel: int = 4, tokenizer: 
     output_filename = get_output_filename(model, 'ideas')
     outf = open(output_filename, 'a')
 
-    prompts = generate_prompts(num_iterations, tokenizer_instance)
+    prompts = generate_prompts(num_samples, tokenizer_instance)
     total_prompts = len(prompts)
     
     if '/' not in model:
