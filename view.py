@@ -30,7 +30,10 @@ def create_merged_dataframe(cleaner_data, prepare_data):
     return merged_df
 
 def get_original_idea(cleaner_data: List[Dict], idea_id: int) -> Dict:
-    return cleaner_data[idea_id-1]
+    for idea in cleaner_data:
+        if idea.get('idea_id') == idea_id:
+            return idea
+    return {}  # Return an empty dict if no matching idea is found
 
 @st.cache_resource
 def load_prepare_data(file_path):
