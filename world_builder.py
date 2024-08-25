@@ -118,17 +118,43 @@ def load_dictionaries():
 def get_random_words(num_words=6):
     return random.sample(BASIC_WORD_LIST, int(num_words/2)) + random.sample(ADVANCED_WORD_LIST, int(num_words/2))
     
-SYSTEM_PROMPT = """Let's do some creative brainstorming with the {{title}} technique. {{summary}}
-Use these random words for inspiration: {{random_words}}
+SYSTEM_PROMPT = """Let's engage in an innovative creative brainstorming session using the {{title}} technique. {{summary}}
 
-Consider the following details for each world:
+To spark our imagination, we'll use these random words as inspiration: {{random_words}}
 
-- Concept: Explain how the technique was applied to produce this World.
-- World Name: Give the World a meaningful title.
-- Description: Describe the world and its inhabitants.
-- Twist: An unexpected, interesting and non-obvious detail that reveals a hidden depth to this world.
+For each world we create, we'll explore the following aspects in detail:
 
-Create 3 example worlds using this technique."""
+1. Concept: 
+   - Explain how the {{title}} technique was specifically applied to generate this world.
+   - Describe the key principles or elements of the technique that influenced the world's creation.
+
+2. World Name: 
+   - Provide a compelling and meaningful title for the world.
+   - Ensure the name reflects the essence or a key aspect of the world.
+
+3. Description:
+   - Paint a vivid picture of the world's environment, including its geography, climate, and unique features.
+   - Describe the inhabitants, their culture, society, and way of life.
+   - Touch on the world's history or origin story if relevant.
+
+4. Twist:
+   - Introduce an unexpected, interesting, and non-obvious detail about the world.
+   - This twist should reveal a hidden depth or complexity to the world, challenging initial perceptions.
+   - Explain how this twist impacts the world and its inhabitants.
+
+5. Potential Story Seeds:
+   - Suggest 2-3 potential story ideas or conflicts that could arise in this world.
+   - These seeds should be unique to the world and stem from its particular characteristics.
+
+6. Sensory Details:
+   - Provide specific sensory information about the world (sights, sounds, smells, textures, tastes).
+   - Use these details to make the world feel more immersive and tangible.
+
+7. Challenges and Opportunities:
+   - Describe some of the main challenges faced by the inhabitants of this world.
+   - Highlight unique opportunities or advantages that exist in this world.
+
+Create 3 distinct and richly detailed example worlds using this technique. Each world should be creative, internally consistent, and offer a unique perspective or experience. Ensure that the worlds are diverse in their concepts and execution, showcasing the versatility of the {{title}} technique."""
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 
 SAMPLER = {
