@@ -30,11 +30,6 @@ def create_merged_dataframe(cleaner_data, prepare_data):
 
     return merged_df
 
-@st.cache_resource
-def load_cleaner_data(file_path):
-    with open(file_path, 'r') as f:
-        return [json.loads(line) for line in f]
-
 def get_original_idea(cleaner_data: List[Dict], idea_id: int) -> Dict:
     return cleaner_data[idea_id-1]
 
@@ -78,14 +73,10 @@ def main():
             </style>
             """, unsafe_allow_html=True)   
 
-    cleaner_path = sys.argv[1]
-    prepare_path = sys.argv[2]
-
-    cleaner_data = load_cleaner_data(cleaner_path)
-    prepare_data = load_prepare_data(prepare_path)
+    raw_prepare_data = load_prepare_data(sys.argv[1])
 
     # Create and cache the merged dataframe
-    merged_df = create_merged_dataframe(cleaner_data, prepare_data)
+    merged_df = create_merged_dataframe(raw_prepare_data['ideas'], raw_prepare_data['worlds'])
 
     # Load reactions
     reactions = load_reactions()

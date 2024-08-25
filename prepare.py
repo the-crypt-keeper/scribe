@@ -12,10 +12,12 @@ class WorldID(World):
 def read_and_process_file(input_filename: str) -> tuple[List[WorldID], List[Dict]]:
     worlds = []
     errors = []
+    ideas = []
 
     with open(input_filename, 'r') as f:
         for idea_id, line in enumerate(f, start=1):
             data = json.loads(line)
+            ideas.append(data)
 
             if 'clean_error' in data:
                 errors.append({'idea_id': idea_id, 'error': data['clean_error']})
@@ -32,19 +34,17 @@ def read_and_process_file(input_filename: str) -> tuple[List[WorldID], List[Dict
                     print('---')
                     print(data['result'])
 
-    return worlds, errors
-
-def write_output(worlds: List[World], output_filename: str):
-    with open(output_filename, 'w') as f:
-        json.dump([world.model_dump() for world in worlds], f, indent=2)
+    return worlds, errors, ideas
 
 def main():
     input_filename = sys.argv[1]
-    output_filename = 'prepare.json'
+    output_filename = input_filename.replace('cleaner','prepare')
+    if output_filename == input_filename: output_filename = 'prepare.json'
 
-    worlds, errors = read_and_process_file(input_filename)
-    write_output(worlds, output_filename)
-    
+    worlds, errors, ideas = read_and_process_file(input_filename)
+    with open(output_filename, 'w') as f:
+        json.dump({ 'worlds': [world.model_dump() for world in worlds], 'ideas': ideas }, f, indent=2)
+   
     print(f"Total number of output worlds: {len(worlds)}")
     print(f"Prepared data written to {output_filename}")
     
