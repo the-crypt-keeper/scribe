@@ -83,7 +83,7 @@ def main():
 
     # Initialize session state for selected world
     if 'selected_world' not in st.session_state:
-        st.session_state.selected_world = 0
+        st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
 
     # Display world name as heading
     title_world_name = st.empty()
@@ -102,7 +102,7 @@ def main():
 
     # Display world name as heading
     selected_world = merged_df.iloc[st.session_state.selected_world]
-    title_world_name.title(selected_world['world_name'])
+    title_world_name.title(f"#{st.session_state.selected_world} {selected_world['world_name']}")
     
     # Display world details
     for key, value in selected_world.items():
