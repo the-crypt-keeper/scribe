@@ -26,7 +26,7 @@ def read_and_process_file(input_filename: str) -> tuple[List[WorldID], List[Dict
                     errors.append({'idea_id': idea_id, 'error': 'no worlds'})
                     
                 for world in data['clean']['worlds']:
-                    world['id'] = hashlib.md5(world['result'].encode()).hexdigest()
+                    world['id'] = hashlib.md5(data['result'].encode()).hexdigest()
                     world['idea_id'] = idea_id
                     for key, value in world.items():
                         if isinstance(value, list):
