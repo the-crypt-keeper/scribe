@@ -12,7 +12,7 @@ def create_merged_dataframe(cleaner_data, prepare_data):
     # Extract relevant information from cleaner data
     cleaner_info = [{
         'idea_id': i + 1,
-        'model': item.get('model', '').replace('openai/', ''),
+        'model': item.get('model', '').split('/')[-1] if '/' in item.get('model', '') else item.get('model', ''),
         'method': item.get('vars', {}).get('title'),
     } for i, item in enumerate(cleaner_data)]
 
@@ -66,6 +66,7 @@ def main():
                         padding-bottom: 0rem;
                         padding-left: 1rem;
                         padding-right: 1rem;
+                        margin-top: 1rem;
                 }
                 html {
                     font-size: 1.5em;
@@ -90,9 +91,7 @@ def main():
     # Create two columns for the layout
     col1, col2 = st.columns([1, 3])
 
-    with col1:
-        st.subheader("World List")
-        
+    with col1:      
         # Pagination
         items_per_page = 6
         total_pages = math.ceil(len(merged_df) / items_per_page)
@@ -131,7 +130,6 @@ def main():
                 st.write(''.join([REACTIONS[r] for r in world_reactions if world_reactions[r]]))
 
     with col2:
-        st.subheader("World Details")
         selected_world = merged_df.iloc[st.session_state.selected_world]
         
         col2_1, col2_2, col2_3 = st.columns([1, 2, 1])
@@ -156,7 +154,7 @@ def main():
                 st.rerun()                
 
         for key, value in selected_world.items():
-            if key not in ['id', 'world_name']:
+            if key not in ['id', 'idea_id', 'world_name']:
                 st.markdown(f"**{key.replace('_',' ').title()}:** {value}")
 
         world_reactions = reactions.get(str(selected_world['id']), {})
