@@ -103,18 +103,15 @@ TECHNIQUES = [
   }  
 ]
 
-BASIC_WORD_LIST = []
-ADVANCED_WORD_LIST = []
-def load_dictionaries():
-    global BASIC_WORD_LIST
-    global ADVANCED_WORD_LIST
-    
-    nltk.download('brown', quiet=True)
-    nltk.download('words', quiet=True)
-    
-    BASIC_WORD_LIST = words.words('en-basic')
-    ADVANCED_WORD_LIST = list(brown.words(categories=['adventure','fiction','humor','science_fiction','romance']))
-    
+def load_word_lists():
+    with open('basic.txt', 'r') as f:
+        BASIC_WORD_LIST = f.read().splitlines()
+    with open('advanced.txt', 'r') as f:
+        ADVANCED_WORD_LIST = f.read().splitlines()
+    return BASIC_WORD_LIST, ADVANCED_WORD_LIST
+
+BASIC_WORD_LIST, ADVANCED_WORD_LIST = load_word_lists()
+
 def get_random_words(num_words=6):
     return random.sample(BASIC_WORD_LIST, int(num_words/2)) + random.sample(ADVANCED_WORD_LIST, int(num_words/2))
     
@@ -222,5 +219,4 @@ def main(model: str, num_iterations: int = 5, num_parallel: int = 4, tokenizer: 
     outf.close()
 
 if __name__ == "__main__":
-    load_dictionaries()
     fire.Fire(main)
