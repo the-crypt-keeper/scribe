@@ -5,69 +5,6 @@ import sys
 import os
 import random
 from typing import List, Dict
-from pathlib import Path
-import hashlib
-
-import requests
-
-def get_cached_image_path(prompt):
-    image_dir = Path('images')
-    image_dir.mkdir(exist_ok=True)
-    prompt_hash = hashlib.md5(prompt.encode()).hexdigest()
-    return image_dir / f"{prompt_hash}.jpg"
-
-def delete_cached_image(prompt):
-    cached_image_path = get_cached_image_path(prompt)
-    if cached_image_path.exists():
-        os.remove(cached_image_path)
-
-def generate_image(prompt):
-    cached_image_path = get_cached_image_path(prompt)
-    
-    if cached_image_path.exists():
-        return str(cached_image_path)
-    
-    url = 'https://www.mystic.ai/v4/runs'
-
-    headers = {
-        'Authorization': 'Bearer '+os.getenv('MYSTIC_API_KEY'),
-        'Content-Type': 'application/json'
-    }
-
-    data = {
-        "pipeline": "black-forest-labs/flux1-schnell:v2",
-        "inputs": [
-            {
-                "type": "string",
-                "value": prompt
-            },
-            {
-                "type": "dictionary",
-                "value": {
-                    "height": 768,
-                    "max_sequence_length": 256,
-                    "num_images_per_prompt": 1,
-                    "num_inference_steps": 10,
-                    "seed": int(random.random()*65535),
-                    "width": 768
-                }
-            }
-        ]
-    }
-
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        data = response.json()
-        image_url = data['outputs'][0]['value'][0]['file']['url']
-        
-        # Download and save the image
-        image_response = requests.get(image_url)
-        with open(cached_image_path, 'wb') as f:
-            f.write(image_response.content)
-        
-        return str(cached_image_path)
-    except Exception as e:
-        return ""
 
 @st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -156,7 +93,7 @@ def main():
     title_world_name = st.empty()
 
     # Row of buttons
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button('⬅️ Previous', disabled=(st.session_state.selected_world == 0)):
             st.session_state.selected_world -= 1
@@ -164,9 +101,6 @@ def main():
         if st.button('🎲 Random'):
             st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
     with col3:
-        if st.button('🔄 New Image'):
-            st.session_state.regenerate_image = True
-    with col4:
         if st.button('Next ➡️', disabled=(st.session_state.selected_world == len(merged_df) - 1)):
             st.session_state.selected_world += 1
 

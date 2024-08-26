@@ -7,41 +7,39 @@ from pydantic import Field
 
 class WorldID(World):
     id: str = Field(description='Unique identifier for the world')
-    idea_id: int = Field(description='ID of the original idea')
+    idea_id: str = Field(description='ID of the original idea')
 
 def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], List[Dict], List[Dict], Dict[str, int]]:
     worlds = []
     errors = []
     ideas = []
-    worlds_per_file = {}
-    global_idea_id = 0
+    worlds_per_file = {}    
 
     for input_filename in input_filenames:
         file_world_count = 0
         with open(input_filename, 'r') as f:
             for line in f:
                 data = json.loads(line)
-                data['idea_id'] = global_idea_id
+                data['idea_id'] = hashlib.md5(data['result'].encode()).hexdigest()
                 ideas.append(data)
 
                 if 'clean_error' in data:
-                    errors.append({'idea_id': global_idea_id, 'error': data['clean_error'], 'filename': input_filename})
+                    errors.append({'idea_id': data['idea_id'], 'error': data['clean_error'], 'filename': input_filename})
                 elif 'clean' in data:
                     if 'worlds' not in data['clean']:
-                        errors.append({'idea_id': global_idea_id, 'error': 'no worlds', 'filename': input_filename})
+                        errors.append({'idea_id': data['idea_id'], 'error': 'no worlds', 'filename': input_filename})
                     else:                        
                         for world in data['clean']['worlds']:
-                            world['id'] = hashlib.md5(data['result'].encode()).hexdigest()
-                            world['idea_id'] = global_idea_id
+                            world['idea_id'] = data['idea_id']
                             for k,v in world.items():
                                 if isinstance(v, dict): world[k] = '\n'.join([f'{sk}: {sv}' for sk,sv in v.items()])
+                            world_key = world['world_name'] + ' ' + world['description']
+                            world['id'] = hashlib.md5(world_key.encode()).hexdigest()
                             try:
                                 worlds.append(WorldID(**world))
                             except Exception as e:
-                                errors.append({'idea_id': global_idea_id, 'error': 'schema error: '+str(e), 'filename': input_filename})
+                                errors.append({'idea_id': data['idea_id'], 'error': 'schema error: '+str(e), 'filename': input_filename})
                             file_world_count += 1
-
-                global_idea_id += 1
         
         worlds_per_file[input_filename] = file_world_count
 
