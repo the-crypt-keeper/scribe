@@ -57,6 +57,10 @@ def find_world_by_id(merged_df, world_id):
     matching_worlds = merged_df[merged_df['id'].str.startswith(world_id)]
     return matching_worlds.index[0] if not matching_worlds.empty else None
 
+def generate_share_link(world_id):
+    base_url = get_url(relative=True)
+    return f"{base_url}?id={world_id}"
+
 REACTIONS = {
     'star': '⭐',
     'flame': '🔥',
@@ -122,6 +126,10 @@ def main():
     selected_world = merged_df.iloc[st.session_state.selected_world]
     world_id = selected_world['id'][0:8]
     title_world_name.write(f"<h1>{selected_world['world_name']}<sub>{world_id}</sub></h1>", unsafe_allow_html=True)
+    
+    # Display share link
+    share_link = generate_share_link(world_id)
+    st.markdown(f"[Share this world]({share_link})")
     
     # Select and display an image
     available_images = get_available_images()
