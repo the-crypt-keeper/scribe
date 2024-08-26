@@ -5,10 +5,21 @@ import sys
 import os
 import random
 from typing import List, Dict
+from pathlib import Path
 
 import requests
 
-def generate_image(prompt):
+def get_cached_image_path(world_id):
+    image_dir = Path('images')
+    image_dir.mkdir(exist_ok=True)
+    return image_dir / f"{world_id}.jpg"
+
+def generate_image(prompt, world_id):
+    cached_image_path = get_cached_image_path(world_id)
+    
+    if cached_image_path.exists():
+        return str(cached_image_path)
+    
     url = 'https://www.mystic.ai/v4/runs'
 
     headers = {
@@ -40,7 +51,13 @@ def generate_image(prompt):
     response = requests.post(url, headers=headers, json=data)
     data = response.json()
     image_url = data['outputs'][0]['value'][0]['file']['url']
-    return image_url
+    
+    # Download and save the image
+    image_response = requests.get(image_url)
+    with open(cached_image_path, 'wb') as f:
+        f.write(image_response.content)
+    
+    return str(cached_image_path)
 
 @st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -145,7 +162,8 @@ def main():
     
     # Generate an image
     image_prompt = selected_world['description']+' Large Text: "' + selected_world['world_name'] + '"'
-    st.write('<center><img src="'+generate_image(image_prompt)+'"></center>', unsafe_allow_html=True)
+    image_path = generate_image(image_prompt, selected_world['id'])
+    st.image(image_path, use_column_width=True)
 
     # Reactions
     world_reactions = reactions.get(str(selected_world['id']), {})
