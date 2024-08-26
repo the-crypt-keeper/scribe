@@ -6,7 +6,6 @@ import os
 import random
 import glob
 from typing import List, Dict
-from streamlit.web.server.websocket_headers import get_query_params
 
 @st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -94,8 +93,7 @@ def main():
 
     # Initialize session state for selected world
     if 'selected_world' not in st.session_state:
-        query_params = get_query_params()
-        if 'id' in query_params:
+        if 'id' in st.query_params:
             world_id = query_params['id'][0]
             found_index = find_world_by_id(merged_df, world_id)
             if found_index is not None:
