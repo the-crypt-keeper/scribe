@@ -6,6 +6,42 @@ import os
 import random
 from typing import List, Dict
 
+import requests
+
+def generate_image(prompt):
+    url = 'https://www.mystic.ai/v4/runs'
+
+    headers = {
+        'Authorization': 'Bearer '+os.getenv('MYSTIC_API_KEY'),
+        'Content-Type': 'application/json'
+    }
+
+    data = {
+        "pipeline": "black-forest-labs/flux1-schnell:v2",
+        "inputs": [
+            {
+                "type": "string",
+                "value": prompt
+            },
+            {
+                "type": "dictionary",
+                "value": {
+                    "height": 768,
+                    "max_sequence_length": 256,
+                    "num_images_per_prompt": 1,
+                    "num_inference_steps": 10,
+                    "seed": 42,
+                    "width": 768
+                }
+            }
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    data = response.json()
+    image_url = data['outputs'][0]['value'][0]['file']['url']
+    return image_url
+
 @st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
     # Extract relevant information from cleaner data
@@ -106,6 +142,10 @@ def main():
     # Display world name as heading
     selected_world = merged_df.iloc[st.session_state.selected_world]
     title_world_name.title(f"#{st.session_state.selected_world} {selected_world['world_name']}")
+    
+    # Generate an image
+    image_prompt = selected_world['description']+' Large Text: "' + selected_world['world_name'] + '"'
+    st.write('<center><img src="'+generate_image(image_prompt)+'"></center>', unsafe_allow_html=True)
 
     # Reactions
     world_reactions = reactions.get(str(selected_world['id']), {})
