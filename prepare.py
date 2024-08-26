@@ -25,15 +25,20 @@ def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], L
                 ideas.append(data)
 
                 if 'clean_error' in data:
-                    errors.append({'idea_id': global_idea_id, 'error': data['clean_error']})
+                    errors.append({'idea_id': global_idea_id, 'error': data['clean_error'], 'filename': input_filename})
                 elif 'clean' in data:
                     if 'worlds' not in data['clean']:
-                        errors.append({'idea_id': global_idea_id, 'error': 'no worlds'})
+                        errors.append({'idea_id': global_idea_id, 'error': 'no worlds', 'filename': input_filename})
                     else:                        
                         for world in data['clean']['worlds']:
                             world['id'] = hashlib.md5(data['result'].encode()).hexdigest()
                             world['idea_id'] = global_idea_id
-                            worlds.append(WorldID(**world))
+                            for k,v in world.items():
+                                if isinstance(v, dict): world[k] = '\n'.join([f'{sk}: {sv}' for sk,sv in v.items()])
+                            try:
+                                worlds.append(WorldID(**world))
+                            except Exception as e:
+                                errors.append({'idea_id': global_idea_id, 'error': 'schema error: '+str(e), 'filename': input_filename})
                             file_world_count += 1
 
                 global_idea_id += 1
@@ -65,7 +70,7 @@ def main():
     if len(errors) > 0:
         print("\nRecords with clean_error:")
         for error in errors:
-            print(f"Idea ID: {error['idea_id']}, Error: {error['error']}")
+            print(f"Idea ID: {error['idea_id']}, Filename: {error['filename']} Error: {error['error']}")
 
 if __name__ == "__main__":
     main()

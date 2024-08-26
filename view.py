@@ -164,7 +164,7 @@ def main():
         if st.button('🎲 Random'):
             st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
     with col3:
-        if st.button('🔄 Regenerate Image'):
+        if st.button('🔄 New Image'):
             st.session_state.regenerate_image = True
     with col4:
         if st.button('Next ➡️', disabled=(st.session_state.selected_world == len(merged_df) - 1)):

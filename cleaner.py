@@ -20,18 +20,18 @@ class World(BaseModel):
 class WorldList(BaseModel):
     worlds: list[World]
 
-SYSTEM_PROMPT = """The text provided by the user describes a number of Worlds, providing sections of information for each one.
+SYSTEM_PROMPT = """The text provided by the user describes imaginary worlds and is always organized into 7 sections: Concept, World Name, Description, Twist, Sensory Details, Story Seeds, Challenges and Opportunities.
 
-Convert it to a list of JSON object with the following schema:
+FULLY AND COMPLETELY map the user input into a JSON object with the following schema:
 
 { "worlds": [
     {
+        "concept": "<Concept>",
         "world_name": "<The World Name>",
-        "concept": "<The way in which the concept was applied to create this world>",
-        "description": "<Description of the world>",
-        "twist": "<Unique Twist that makes this world interesting>",
+        "description": "<Description>",
+        "twist": "<Twist>",
         "story_seeds": ["<A story idea that could arise in this world>","<another story idea...>"],
-        "sensory": "<Specific sensory information about the world>",
+        "sensory": "<Sensory Details>",
         "challenges_opportunities": "<Difficulties or opportunities faced by inhabitants of this world>"
     },
     {
@@ -39,18 +39,16 @@ Convert it to a list of JSON object with the following schema:
     }
 ]}
 
-If the user text does not contain a list of worlds, return an empty list: `{ "worlds": [] }`
+Include all sub-titles, ensure all input text is mapped exactly once into this structure.
+Escape quotes, convert any newlines into \n and otherwise ensure the output JSON is valid.
 
 ### INPUT:
 """
 
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
-
-MODEL = 'openai/Mistral-7B-Instruct-v0.3-GPTQ-4bit'
-NUM_PARALLEL = 4
 SCHEMA = WorldList.model_json_schema()
 
-def process_prompt(data, text_key):
+def process_prompt(data, text_key, model, delay):
     if 'clean' in data:
         return data
 
@@ -63,18 +61,20 @@ def process_prompt(data, text_key):
     
     answer = None
     try:
-        answer = get_llm_response(messages, MODEL, **sampler)       
-        clean_data = json.loads(answer)
+        answer = get_llm_response(messages, model, **sampler)
+        clean_answer = answer[answer.find('{'):answer.rfind('}')+1]
+        clean_data = json.loads(clean_answer)
         data['clean'] = clean_data
     except Exception as e:
         data['clean_error'] = str(e)
         data['clean_raw'] = answer
 
     data['clean_timestamp'] = time.time()
-    data['clean_model'] = MODEL
+    data['clean_model'] = model
+    if delay > 0: time.sleep(delay)
     return data
 
-def run(input_file: str, key_name: str = 'result'):
+def run(input_file: str, model: str = 'openai/Mistral-Nemo-Instruct-2407-gptq-4bit', num_parallel : int = 2, delay : int = 0, key_name: str = 'result'):
     output_filename = input_file.replace('ideas','cleaner')
     outf = open(output_filename, 'w')
 
@@ -83,8 +83,8 @@ def run(input_file: str, key_name: str = 'result'):
 
     total_prompts = len(data)
     
-    with ThreadPoolExecutor(max_workers=NUM_PARALLEL) as executor:
-        futures = [executor.submit(process_prompt, item, key_name) for item in data]
+    with ThreadPoolExecutor(max_workers=num_parallel) as executor:
+        futures = [executor.submit(process_prompt, item, key_name, model, delay) for item in data]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
