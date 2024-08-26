@@ -48,16 +48,19 @@ def generate_image(prompt, world_id):
         ]
     }
 
-    response = requests.post(url, headers=headers, json=data)
-    data = response.json()
-    image_url = data['outputs'][0]['value'][0]['file']['url']
-    
-    # Download and save the image
-    image_response = requests.get(image_url)
-    with open(cached_image_path, 'wb') as f:
-        f.write(image_response.content)
-    
-    return str(cached_image_path)
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        data = response.json()
+        image_url = data['outputs'][0]['value'][0]['file']['url']
+        
+        # Download and save the image
+        image_response = requests.get(image_url)
+        with open(cached_image_path, 'wb') as f:
+            f.write(image_response.content)
+        
+        return str(cached_image_path)
+    except Exception as e:
+        return ""
 
 @st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -109,7 +112,8 @@ REACTIONS = {
     'flame': '🔥',
     'poop': '💩',
     'thumbs_up': '👍',
-    'thumbs_down': '👎'
+    'thumbs_down': '👎',
+    'lol': '😂'
 }
 
 def main():
@@ -161,25 +165,26 @@ def main():
     title_world_name.title(f"#{st.session_state.selected_world} {selected_world['world_name']}")
     
     # Generate an image
-    image_prompt = selected_world['description']+' Large Text: "' + selected_world['world_name'] + '"'
+    image_prompt = selected_world['description']+' Bottom Text: "' + selected_world['world_name'] + '"'
     image_path = generate_image(image_prompt, selected_world['id'])
     st.image(image_path, use_column_width=True)
 
     # Reactions
-    world_reactions = reactions.get(str(selected_world['id']), {})
-    cols = st.columns(5)
-    reaction_changed = False
-    for i, (reaction, emoji) in enumerate(REACTIONS.items()):
-        with cols[i]:
-            new_value = st.checkbox(f"{emoji}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}")
-            if new_value != world_reactions.get(reaction, False):
-                reaction_changed = True
-                if str(selected_world['id']) not in reactions:
-                    reactions[str(selected_world['id'])] = {}
-                reactions[str(selected_world['id'])][reaction] = new_value
-    if reaction_changed:
-        save_reactions(reactions)
-        st.rerun()
+    with st.expander('Reactions', expanded=False):
+        world_reactions = reactions.get(str(selected_world['id']), {})
+        cols = st.columns(6, gap='small', vertical_alignment='center')
+        reaction_changed = False
+        for i, (reaction, emoji) in enumerate(REACTIONS.items()):
+            with cols[i]:
+                new_value = st.checkbox(f"{emoji}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}")
+                if new_value != world_reactions.get(reaction, False):
+                    reaction_changed = True
+                    if str(selected_world['id']) not in reactions:
+                        reactions[str(selected_world['id'])] = {}
+                    reactions[str(selected_world['id'])][reaction] = new_value
+        if reaction_changed:
+            save_reactions(reactions)
+            st.rerun()
             
     # Display world details
     detail_order = ['concept', 'description', 'twist', 'sensory', 'story_seeds', 'challenges_opportunities']
