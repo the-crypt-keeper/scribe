@@ -6,16 +6,18 @@ import os
 import random
 from typing import List, Dict
 from pathlib import Path
+import hashlib
 
 import requests
 
-def get_cached_image_path(world_id):
+def get_cached_image_path(prompt):
     image_dir = Path('images')
     image_dir.mkdir(exist_ok=True)
-    return image_dir / f"{world_id}.jpg"
+    prompt_hash = hashlib.md5(prompt.encode()).hexdigest()
+    return image_dir / f"{prompt_hash}.jpg"
 
-def generate_image(prompt, world_id):
-    cached_image_path = get_cached_image_path(world_id)
+def generate_image(prompt):
+    cached_image_path = get_cached_image_path(prompt)
     
     if cached_image_path.exists():
         return str(cached_image_path)
@@ -166,7 +168,7 @@ def main():
     
     # Generate an image
     image_prompt = selected_world['description']+' Bottom Text: "' + selected_world['world_name'] + '"'
-    image_path = generate_image(image_prompt, selected_world['id'])
+    image_path = generate_image(image_prompt)
     st.image(image_path, use_column_width=True)
 
     # Reactions
