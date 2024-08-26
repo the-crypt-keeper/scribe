@@ -4,6 +4,7 @@ import json
 import sys
 import os
 import random
+import glob
 from typing import List, Dict
 
 @st.cache_data
@@ -50,6 +51,10 @@ def load_reactions():
 def save_reactions(reactions):
     with open('reactions.json', 'w') as f:
         json.dump(reactions, f)
+
+@st.cache_data
+def get_available_images():
+    return glob.glob('flux/world*.png')
 
 REACTIONS = {
     'star': '⭐',
@@ -108,13 +113,14 @@ def main():
     selected_world = merged_df.iloc[st.session_state.selected_world]
     title_world_name.title(f"#{st.session_state.selected_world} {selected_world['world_name']}")
     
-    # Generate an image
-    image_prompt = selected_world['description']+' Bottom Text: "' + selected_world['world_name'] + '"'
-    if 'regenerate_image' in st.session_state and st.session_state.regenerate_image:
-        delete_cached_image(image_prompt)
-        st.session_state.regenerate_image = False
-    image_path = generate_image(image_prompt)
-    st.image(image_path)
+    # Select and display an image
+    available_images = get_available_images()
+    world_images = [img for img in available_images if f"world{selected_world['id']}_" in img]
+    if world_images:
+        image_path = random.choice(world_images)
+        st.image(image_path)
+    else:
+        st.warning(f"No images found for World ID {selected_world['id']}")
 
     # Reactions
     with st.expander('Reactions', expanded=False):
