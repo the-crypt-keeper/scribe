@@ -6,6 +6,7 @@ import os
 import random
 import glob
 from typing import List, Dict
+from streamlit.web.server.websocket_headers import get_query_params
 
 @st.cache_data
 def create_merged_dataframe(cleaner_data, prepare_data):
@@ -53,6 +54,10 @@ def save_reactions(reactions):
 def get_available_images():
     return glob.glob('flux/world*.png')
 
+def find_world_by_id(merged_df, world_id):
+    matching_worlds = merged_df[merged_df['id'].str.startswith(world_id)]
+    return matching_worlds.index[0] if not matching_worlds.empty else None
+
 REACTIONS = {
     'star': '⭐',
     'flame': '🔥',
@@ -89,7 +94,16 @@ def main():
 
     # Initialize session state for selected world
     if 'selected_world' not in st.session_state:
-        st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
+        query_params = get_query_params()
+        if 'id' in query_params:
+            world_id = query_params['id'][0]
+            found_index = find_world_by_id(merged_df, world_id)
+            if found_index is not None:
+                st.session_state.selected_world = found_index
+            else:
+                st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
+        else:
+            st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
 
     # Display world name as heading
     title_world_name = st.empty()
