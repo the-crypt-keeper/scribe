@@ -43,7 +43,7 @@ def generate_image(prompt):
                     "max_sequence_length": 256,
                     "num_images_per_prompt": 1,
                     "num_inference_steps": 10,
-                    "seed": 42,
+                    "seed": int(random.random()*65535),
                     "width": 768
                 }
             }
@@ -169,7 +169,7 @@ def main():
     # Generate an image
     image_prompt = selected_world['description']+' Bottom Text: "' + selected_world['world_name'] + '"'
     image_path = generate_image(image_prompt)
-    st.image(image_path, use_column_width=True)
+    st.image(image_path)
 
     # Reactions
     with st.expander('Reactions', expanded=False):
