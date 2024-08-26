@@ -16,6 +16,11 @@ def get_cached_image_path(prompt):
     prompt_hash = hashlib.md5(prompt.encode()).hexdigest()
     return image_dir / f"{prompt_hash}.jpg"
 
+def delete_cached_image(prompt):
+    cached_image_path = get_cached_image_path(prompt)
+    if cached_image_path.exists():
+        os.remove(cached_image_path)
+
 def generate_image(prompt):
     cached_image_path = get_cached_image_path(prompt)
     
@@ -151,7 +156,7 @@ def main():
     title_world_name = st.empty()
 
     # Row of buttons
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.button('⬅️ Previous', disabled=(st.session_state.selected_world == 0)):
             st.session_state.selected_world -= 1
@@ -159,6 +164,9 @@ def main():
         if st.button('🎲 Random'):
             st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
     with col3:
+        if st.button('🔄 Regenerate Image'):
+            st.session_state.regenerate_image = True
+    with col4:
         if st.button('Next ➡️', disabled=(st.session_state.selected_world == len(merged_df) - 1)):
             st.session_state.selected_world += 1
 
@@ -168,6 +176,9 @@ def main():
     
     # Generate an image
     image_prompt = selected_world['description']+' Bottom Text: "' + selected_world['world_name'] + '"'
+    if 'regenerate_image' in st.session_state and st.session_state.regenerate_image:
+        delete_cached_image(image_prompt)
+        st.session_state.regenerate_image = False
     image_path = generate_image(image_prompt)
     st.image(image_path)
 
