@@ -11,7 +11,7 @@ from typing import List, Dict
 def create_merged_dataframe(cleaner_data, prepare_data):
     # Extract relevant information from cleaner data
     cleaner_info = [{
-        'idea_id': i + 1,
+        'idea_id': item.get('idea_id'),
         'model': item.get('model', '').split('/')[-1] if '/' in item.get('model', '') else item.get('model', ''),
         'method': item.get('vars', {}).get('title'),
     } for i, item in enumerate(cleaner_data)]
@@ -24,9 +24,6 @@ def create_merged_dataframe(cleaner_data, prepare_data):
 
     # Merge the DataFrames
     merged_df = pd.merge(prepare_df, cleaner_df, on='idea_id', how='left')
-
-    # Shuffle the DataFrame
-    merged_df = merged_df.sample(frac=1, random_state=random.randint(1, 1000)).reset_index(drop=True)
 
     return merged_df
 
@@ -111,11 +108,12 @@ def main():
 
     # Display world name as heading
     selected_world = merged_df.iloc[st.session_state.selected_world]
-    title_world_name.title(f"#{st.session_state.selected_world} {selected_world['world_name']}")
+    world_id = selected_world['id'][0:8]
+    title_world_name.write(f"<h1>{selected_world['world_name']}<sub>{world_id}</sub></h1>", unsafe_allow_html=True)
     
     # Select and display an image
     available_images = get_available_images()
-    world_images = [img for img in available_images if f"world{selected_world['id']}_" in img]
+    world_images = [img for img in available_images if f"{selected_world['id']}" in img]
     if world_images:
         image_path = random.choice(world_images)
         st.image(image_path)
