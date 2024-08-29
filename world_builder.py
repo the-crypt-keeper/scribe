@@ -1,5 +1,5 @@
 import time
-from utils import get_llama_completion, get_llm_response, get_output_filename
+from utils import get_llama_completion, get_llm_response, get_output_filename, build_tokenizer
 import re
 import random
 import json
@@ -9,7 +9,6 @@ from nltk.corpus import words, brown
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import fire
-from transformers import AutoTokenizer
 
 TECHNIQUES = [
   {
@@ -194,8 +193,7 @@ def main(model: str, num_samples: int = 50, num_parallel: int = 4, tokenizer: st
         num_parallel (int): Number of parallel threads to use. Default is 4.
         tokenizer (str): Optional. The name of the HuggingFace tokenizer to use for pre-processing.
     """
-    tokenizer_instance = None
-    if tokenizer: tokenizer_instance = AutoTokenizer.from_pretrained(tokenizer)
+    tokenizer_instance = build_tokenizer(tokenizer)
     output_filename = get_output_filename(model, 'ideas')
     outf = open(output_filename, 'a')
 

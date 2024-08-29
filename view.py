@@ -57,10 +57,6 @@ def find_world_by_id(merged_df, world_id):
     matching_worlds = merged_df[merged_df['id'].str.startswith(world_id)]
     return matching_worlds.index[0] if not matching_worlds.empty else None
 
-def generate_share_link(world_id):
-    base_url = get_url(relative=True)
-    return f"{base_url}?id={world_id}"
-
 REACTIONS = {
     'star': '⭐',
     'flame': '🔥',
@@ -97,21 +93,20 @@ def main():
 
     # Initialize session state for selected world
     if 'selected_world' not in st.session_state:
+        st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
         if 'id' in st.query_params:
-            world_id = query_params['id'][0]
+            world_id = st.query_params['id']
             found_index = find_world_by_id(merged_df, world_id)
             if found_index is not None:
                 st.session_state.selected_world = found_index
-            else:
-                st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
-        else:
-            st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
 
     # Display world name as heading
     title_world_name = st.empty()
 
     # Row of buttons
-    col1, col2, col3 = st.columns(3)
+    col0, col1, col2, col3 = st.columns(4)
+    with col0:
+        share_link = st.empty()
     with col1:
         if st.button('⬅️ Previous', disabled=(st.session_state.selected_world == 0)):
             st.session_state.selected_world -= 1
@@ -126,10 +121,7 @@ def main():
     selected_world = merged_df.iloc[st.session_state.selected_world]
     world_id = selected_world['id'][0:8]
     title_world_name.write(f"<h1>{selected_world['world_name']}<sub>{world_id}</sub></h1>", unsafe_allow_html=True)
-    
-    # Display share link
-    share_link = generate_share_link(world_id)
-    st.markdown(f"[Share this world]({share_link})")
+    share_link.write(f"<a href='/?id={selected_world['id']}'>Share This World</a>", unsafe_allow_html=True)       
     
     # Select and display an image
     available_images = get_available_images()
