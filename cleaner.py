@@ -55,7 +55,7 @@ def process_prompt(data, opts):
     else:
         messages = [{'role': 'system', 'content': SYSTEM_PROMPT},{'role': 'user', 'content': user_text}]        
             
-    sampler = { 'temperature': 0.0, 'max_tokens': 4095 }
+    sampler = { 'temperature': 0.0, 'max_tokens': 3000 }
     schema_mode = opts['schema_mode']
     model = opts['model']
     
@@ -73,6 +73,7 @@ def process_prompt(data, opts):
         raise Exception("bad schema_mode")
     
     answer = None
+    clean_answer = None
     try:
         if model[0:6] == 'llama/':
             answer = get_llama_completion(messages, model, **sampler)            
@@ -81,7 +82,7 @@ def process_prompt(data, opts):
         
         if schema_mode == 'none':
             first_obj = answer.find('{')
-            last_obj = answer.rfind('{')
+            last_obj = answer.rfind('}')
             first_list = answer.find('[')
             last_list = answer.rfind(']')
             if first_list is None or first_obj < first_list:
@@ -96,13 +97,18 @@ def process_prompt(data, opts):
     except Exception as e:
         data['clean_error'] = str(e)
         data['clean_raw'] = answer
+        data['clean_json'] = clean_answer
+        
+        print('JSON decode failed:' + str(e))
+        print(clean_answer)
+        print('---')
 
     data['clean_timestamp'] = time.time()
     data['clean_model'] = model
     if opts['delay'] > 0: time.sleep(opts['delay'])
     return data
 
-def run(input_file: str, model: str = 'openai/Mistral-Nemo-Instruct-2407-gptq-4bit', num_parallel : int = 2, delay : int = 0, key_name: str = 'result', schema : str = "vllm", system_role : bool = True):
+def run(input_file: str, model: str = 'openai/gemma-2-9b-it-exl2-6.0bpw', num_parallel : int = 2, delay : int = 0, key_name: str = 'result', schema : str = "none", system_role : bool = False):
     output_filename = input_file.replace('ideas','cleaner')
     outf = open(output_filename, 'w')
 
