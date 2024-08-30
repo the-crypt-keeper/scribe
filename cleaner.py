@@ -43,17 +43,22 @@ INSTRUCTIONS:
 SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
 SCHEMA = WorldList.model_json_schema()
 
-def process_prompt(data, text_key, model, delay, schema_mode):
+def process_prompt(data, opts):   
     if 'clean' in data:
         return data
 
-    user_text = data.get(text_key, '')
+    user_text = data.get(opts['key_name'], '')
     if user_text.strip() == '': return None
-    
-    #messages = [{'role': 'user', 'content': SYSTEM_PROMPT+"\n\n### INPUT:\n"+user_text}]
-    messages = [{'role': 'system', 'content': SYSTEM_PROMPT},{'role': 'user', 'content': user_text}]
-    
+        
+    if opts['system_role'] != True:
+        messages = [{'role': 'user', 'content': SYSTEM_PROMPT+"\n\n"+user_text}]
+    else:
+        messages = [{'role': 'system', 'content': SYSTEM_PROMPT},{'role': 'user', 'content': user_text}]        
+            
     sampler = { 'temperature': 0.0, 'max_tokens': 4095 }
+    schema_mode = opts['schema_mode']
+    model = opts['model']
+    
     if schema_mode == "none": 
         pass
     elif schema_mode == "openai-schema":
@@ -94,10 +99,10 @@ def process_prompt(data, text_key, model, delay, schema_mode):
 
     data['clean_timestamp'] = time.time()
     data['clean_model'] = model
-    if delay > 0: time.sleep(delay)
+    if opts['delay'] > 0: time.sleep(opts['delay'])
     return data
 
-def run(input_file: str, model: str = 'openai/Mistral-Nemo-Instruct-2407-gptq-4bit', num_parallel : int = 2, delay : int = 0, key_name: str = 'result', schema : str = "vllm"):
+def run(input_file: str, model: str = 'openai/Mistral-Nemo-Instruct-2407-gptq-4bit', num_parallel : int = 2, delay : int = 0, key_name: str = 'result', schema : str = "vllm", system_role : bool = True):
     output_filename = input_file.replace('ideas','cleaner')
     outf = open(output_filename, 'w')
 
@@ -105,9 +110,16 @@ def run(input_file: str, model: str = 'openai/Mistral-Nemo-Instruct-2407-gptq-4b
         data = [json.loads(line) for line in f]
 
     total_prompts = len(data)
+    opts = {
+        'key_name': key_name,
+        'model': model,
+        'delay': delay,
+        'schema_mode': schema,
+        'system_role': system_role
+    }
     
     with ThreadPoolExecutor(max_workers=num_parallel) as executor:
-        futures = [executor.submit(process_prompt, item, key_name, model, delay, schema) for item in data]
+        futures = [executor.submit(process_prompt, item, opts) for item in data]
         
         with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
             for future in as_completed(futures):
