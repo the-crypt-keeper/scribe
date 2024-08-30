@@ -26,6 +26,20 @@ def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], L
                 if 'clean_error' in data:
                     errors.append({'idea_id': data['idea_id'], 'error': data['clean_error'], 'filename': input_filename})
                 elif 'clean' in data:
+                    clean_len = len(str(data['clean']))
+                    result_len = len(data['result'])
+                    ratio = clean_len/result_len
+                    
+                    if ratio < 0.7:
+                        print('---')
+                        print(data['result'])
+                        print(data['clean'])
+                        
+                        errors.append({'idea_id': data['idea_id'], 'error': f'low clean ratio {ratio:.2f}', 'filename': input_filename})
+                        
+                    if isinstance(data['clean'], list):
+                        data['clean'] = { 'worlds': data['clean'] }
+                    
                     if 'worlds' not in data['clean']:
                         errors.append({'idea_id': data['idea_id'], 'error': 'no worlds', 'filename': input_filename})
                     else:                        

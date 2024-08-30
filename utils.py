@@ -2,6 +2,7 @@ import litellm
 import json
 import os
 import re
+import time
 from transformers import AutoTokenizer
 
 import requests
@@ -14,7 +15,8 @@ def get_output_filename(model, prefix):
     model_name = model.split('/')[-1]
     # Replace any non-alphanumeric characters with underscores
     safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
-    return f"{prefix}_{safe_model_name}.json"
+    current_time = int(time.time())
+    return f"{prefix}_{safe_model_name}_{current_time}.json"
 
 def decode_json(response, first_key = True):
     result = response[response.find('{'):response.rfind('}')+1]
@@ -45,7 +47,7 @@ def get_llm_response(messages, model, n=1, **params):
 
 def get_llama_completion(messages, model, **params):
     if 'max_tokens' in params:
-        params['n_predict'] = params['max_tokens']        
+        params['n_predict'] = params['max_tokens']
     
     payload = {
         'model': model.replace('llama/',''),
