@@ -39,6 +39,8 @@ def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], L
                         
                     if isinstance(data['clean'], list):
                         data['clean'] = { 'worlds': data['clean'] }
+                    if 'world_name' in data['clean']:
+                        data['clean'] = { 'worlds': [data['clean']] }
                     
                     if 'worlds' not in data['clean']:
                         errors.append({'idea_id': data['idea_id'], 'error': 'no worlds', 'filename': input_filename})
@@ -47,6 +49,8 @@ def read_and_process_files(input_filenames: List[str]) -> tuple[List[WorldID], L
                             world['idea_id'] = data['idea_id']
                             for k,v in world.items():
                                 if isinstance(v, dict): world[k] = '\n'.join([f'{sk}: {sv}' for sk,sv in v.items()])
+                                if v is None: world[k] = ''
+                            
                             world_key = world['world_name'] + ' ' + world['description']
                             world['id'] = hashlib.md5(world_key.encode()).hexdigest()
                             try:
