@@ -1,0 +1,5 @@
+history/
+v3/
+__pycache__/
+.aider*
+*.json
