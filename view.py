@@ -51,7 +51,7 @@ def save_reactions(reactions):
 
 @st.cache_data
 def get_available_images():
-    return glob.glob('flux/world*.png')
+    return glob.glob('static/*')
 
 def find_world_by_id(merged_df, world_id):
     matching_worlds = merged_df[merged_df['id'].str.startswith(world_id)]
@@ -67,7 +67,7 @@ REACTIONS = {
 }
 
 def main():
-    st.set_page_config(page_title='World Builder Data Viewer', layout="wide")
+    st.set_page_config(page_title='Altered Worlds', layout="wide")
     st.markdown("""
             <style>
                 .block-container {
@@ -128,26 +128,28 @@ def main():
     world_images = [img for img in available_images if f"{selected_world['id']}" in img]
     if world_images:
         image_path = random.choice(world_images)
-        st.image(image_path)
+        print(image_path)
+        st.write(f'<center><img src="/app/{image_path}"></center>', unsafe_allow_html=True)
+        #st.image(image_path)
     else:
         st.warning(f"No images found for World ID {selected_world['id']}")
 
     # Reactions
-    with st.expander('Reactions', expanded=False):
-        world_reactions = reactions.get(str(selected_world['id']), {})
-        cols = st.columns(6, gap='small', vertical_alignment='center')
-        reaction_changed = False
-        for i, (reaction, emoji) in enumerate(REACTIONS.items()):
-            with cols[i]:
-                new_value = st.checkbox(f"{emoji}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}")
-                if new_value != world_reactions.get(reaction, False):
-                    reaction_changed = True
-                    if str(selected_world['id']) not in reactions:
-                        reactions[str(selected_world['id'])] = {}
-                    reactions[str(selected_world['id'])][reaction] = new_value
-        if reaction_changed:
-            save_reactions(reactions)
-            st.rerun()
+    # with st.expander('Reactions', expanded=False):
+    #     world_reactions = reactions.get(str(selected_world['id']), {})
+    #     cols = st.columns(6, gap='small', vertical_alignment='center')
+    #     reaction_changed = False
+    #     for i, (reaction, emoji) in enumerate(REACTIONS.items()):
+    #         with cols[i]:
+    #             new_value = st.checkbox(f"{emoji}", value=world_reactions.get(reaction, False), key=f"reaction_{selected_world['id']}_{reaction}")
+    #             if new_value != world_reactions.get(reaction, False):
+    #                 reaction_changed = True
+    #                 if str(selected_world['id']) not in reactions:
+    #                     reactions[str(selected_world['id'])] = {}
+    #                 reactions[str(selected_world['id'])][reaction] = new_value
+    #     if reaction_changed:
+    #         save_reactions(reactions)
+    #         st.rerun()
             
     # Display world details
     detail_order = ['concept', 'description', 'twist', 'sensory', 'story_seeds', 'challenges_opportunities']
@@ -159,7 +161,7 @@ def main():
                     text += f"- {seed}\n"
                 st.markdown(text)
             else:
-                st.markdown(f"**{key.replace('_',' ').title()}:** {selected_world[key]}")
+                st.markdown(f"**{key.replace('_',' ').title()}:**\n{selected_world[key]}")
 
     # Display model and method in two columns
     col1, col2 = st.columns(2)
@@ -168,9 +170,9 @@ def main():
     with col2:
         st.markdown(f"**Method:** {selected_world['method']}")
 
-    with st.expander('DEBUG: Original Idea'):
+    with st.expander('DEBUG: Original LLM Response'):
         original_idea = get_original_idea(raw_prepare_data['ideas'], selected_world['idea_id'])
-        st.json(original_idea)
+        st.markdown(original_idea['result'])
 
 if __name__ == "__main__":
     main()
