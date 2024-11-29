@@ -3,3 +3,5 @@ v3/
 __pycache__/
 .aider*
 *.json
+basic.txt
+advanced.txt

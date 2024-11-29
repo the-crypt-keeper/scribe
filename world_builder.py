@@ -1,14 +1,7 @@
-import time
-from utils import get_llama_completion, get_llm_response, get_output_filename, build_tokenizer
-import re
-import random
 import json
-from jinja2 import Template
-import nltk
-from nltk.corpus import words, brown
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from tqdm import tqdm
 import fire
+import random
+from base import Scribe
 
 TECHNIQUES = [
   {
@@ -102,23 +95,13 @@ TECHNIQUES = [
   }  
 ]
 
-def load_word_lists():
-    with open('basic.txt', 'r') as f:
-        BASIC_WORD_LIST = f.read().splitlines()
-    with open('advanced.txt', 'r') as f:
-        ADVANCED_WORD_LIST = f.read().splitlines()
-    return BASIC_WORD_LIST, ADVANCED_WORD_LIST
-
-BASIC_WORD_LIST, ADVANCED_WORD_LIST = load_word_lists()
-
-def get_random_words(num_words=6):
-    return random.sample(BASIC_WORD_LIST, int(num_words/2)) + random.sample(ADVANCED_WORD_LIST, int(num_words/2))
-    
-SYSTEM_PROMPT = """Let's engage in an innovative creative brainstorming session using the {{title}} technique. {{summary}}
+PROMPT_TEMPLATE = """Let's engage in an innovative creative brainstorming session using the {{title}} technique. {{summary}}
 
 To spark our imagination, we'll use these random words as inspiration: {{random_words}}
 
-For each world we create, we'll explore the following aspects in detail:
+IMPORTANT: DO NOT DIRECTLY MENTION THESE RANDOM WORDS IN YOUR OUTPUT.
+
+We will create the world by exploring the following aspects in detail:
 
 1. Concept: 
    - Explain how the {{title}} technique was specifically applied to generate this world.
@@ -150,8 +133,7 @@ For each world we create, we'll explore the following aspects in detail:
    - Describe some of the main challenges faced by the inhabitants of this world.
    - Highlight unique opportunities or advantages that exist in this world.
 
-Create 3 distinct and richly detailed example worlds using this technique. Each world should be creative, internally consistent, and offer a unique perspective or experience. Ensure that the worlds are diverse in their concepts and execution, showcasing the versatility of the {{title}} technique."""
-SYSTEM_TEMPLATE = Template(SYSTEM_PROMPT)
+Create a distinct and richly detailed example world using this technique, showcasing the versatility of the {{title}} technique."""
 
 SAMPLER = {
     'temperature': 1.0,
@@ -161,60 +143,23 @@ SAMPLER = {
     'min_tokens': 10 
 }
 
-def generate_prompts(num_samples, tokenizer=None):
-    prompts = []
-    for _ in range(num_samples):
+class WorldBuilder(Scribe):
+    def generate_vars(self):        
         method = random.choice(TECHNIQUES)
-        vars = { 'random_words': ', '.join(get_random_words()), **method }
-        text = SYSTEM_TEMPLATE.render(**vars)            
-        messages = [{'role': 'user', 'content': text}]
-        if tokenizer:
-          vars['tokenizer'] = tokenizer.name_or_path
-          messages = [{"role": "user", "content": tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, bos_token='')}]            
-        prompts.append((messages, vars))
-    return prompts
+        random_words = self.get_random_words('basic', 3) + self.get_random_words('advanced', 3)
+        vars = { 'random_words': ', '.join(random_words), **method }
+        return vars
+      
+    def prompt_template(self):
+        return PROMPT_TEMPLATE
 
-def process_prompt(args):
-    model, messages, vars = args
-    if 'llama/' in model:
-      answer = get_llama_completion(messages, model, **SAMPLER)
-    else:
-      answer = get_llm_response(messages, model, **SAMPLER)
-    idea = {'timestamp': time.time(), 'model': model, 'result': answer, 'vars': vars}
-    return [idea]
-
-def main(model: str, num_samples: int = 50, num_parallel: int = 4, tokenizer: str = None):
-    """
-    Generate creative world ideas using AI.
-
-    Args:
-        model (str): The AI model to use for generation.
-        num_iterations (int): Number of iterations per technique. Default is 5.
-        num_parallel (int): Number of parallel threads to use. Default is 4.
-        tokenizer (str): Optional. The name of the HuggingFace tokenizer to use for pre-processing.
-    """
-    tokenizer_instance = build_tokenizer(tokenizer)
-    output_filename = get_output_filename(model, 'ideas')
-    outf = open(output_filename, 'a')
-
-    prompts = generate_prompts(num_samples, tokenizer_instance)
-    total_prompts = len(prompts)
-    
-    if '/' not in model:
-      model = 'openai/'+model if tokenizer is None else 'text-completion-openai/'+model
-
-    with ThreadPoolExecutor(max_workers=num_parallel) as executor:
-        futures = [executor.submit(process_prompt, (model, messages, vars)) for messages, vars in prompts]
-        
-        with tqdm(total=total_prompts, desc="Processing prompts", unit="prompt") as pbar:
-            for future in as_completed(futures):
-                ideas = future.result()
-                for idea in ideas:
-                    outf.write(json.dumps(idea) + '\n')
-                    outf.flush()
-                pbar.update(1)
-
-    outf.close()
+def main(model: str, num_samples: int = 50, num_parallel: int = 1, num_batch: int = 1, tokenizer: str = None):
+    wb = WorldBuilder(model)
+    if tokenizer: wb.completion_mode(tokenizer)    
+    with open(wb.make_output_filename('ideas'), 'a') as outf:  
+      for idea in wb.parallel_generator(num_parallel, num_samples, SAMPLER, num_batch):
+        outf.write(json.dumps(idea)+'\n')
+        outf.flush()
 
 if __name__ == "__main__":
     fire.Fire(main)

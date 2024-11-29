@@ -16,7 +16,3 @@ def create_dictionaries():
         for word in sorted(advanced_words):
             if not (word[0].isdigit() or word[0].isalpha()): continue
             f.write(f"{word}\n")
-
-if __name__ == "__main__":
-    create_dictionaries()
-    print("Word lists have been written to 'basic.txt' and 'advanced.txt'.")
