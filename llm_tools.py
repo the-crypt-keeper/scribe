@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer
 import requests
 import os
+import json
 
 API_BASE_URL = os.getenv('OPENAI_BASE_URL',"http://100.109.96.89:3333/v1")
 API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
@@ -24,6 +25,17 @@ def universal_llm_request(completion, model, messages, params, n):
             
         return answers
 
+def simple_extract_json(response, first_key = True):
+    result = response[response.find('{'):response.rfind('}')+1]
+    try:
+        data = json.loads(result)
+        if first_key: data = data.get(list(data.keys())[0])
+        return first_key
+    except Exception as e:
+        print(result)
+        print(e)
+        return None
+    
 class InternalTokenizer:    
     def __init__(self, name, fn):
         self.fn = fn
