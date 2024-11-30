@@ -1,4 +1,28 @@
 from transformers import AutoTokenizer
+import requests
+import os
+
+API_BASE_URL = os.getenv('OPENAI_BASE_URL',"http://100.109.96.89:3333/v1")
+API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
+
+def universal_llm_request(completion, model, messages, params, n):
+        payload = { 'model': model, 'n': n, 'messages': messages, **params }
+        headers = { 'Authentication': 'Bearer '+API_KEY }
+    
+        if completion:
+            payload['prompt'] = payload.pop('messages')[0]['content']            
+            response = requests.post(API_BASE_URL+'/completions', json=payload, headers=headers).json()                     
+        else:
+            response = requests.post(API_BASE_URL+'/chat/completions', json=payload, headers=headers).json()
+        
+        if 'choices' in response:
+            # OpenAI-style response
+            answers = [x['message']['content'] if 'message' in x else x['text'] for x in response['choices']]
+        elif 'content' in response:
+            # LlamaCpp legacy style response
+            answers = [response['content']]
+            
+        return answers
 
 class InternalTokenizer:    
     def __init__(self, name, fn):
