@@ -139,7 +139,7 @@ SAMPLER = {
     'temperature': 1.0,
     'min_p': 0.05,
     'repetition_penalty': 1.1,
-    'max_tokens': 3072,
+    'max_tokens': 2048,
     'min_tokens': 10 
 }
 
