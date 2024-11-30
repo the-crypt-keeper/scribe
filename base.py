@@ -77,24 +77,32 @@ class Scribe():
                     self.save(self.outkey, id, output)
                     self.save('_'+self.outkey, id, meta)
 
+import sqlite3
+
 class SQLiteScribe(Scribe):
     def __init__(self, project, arglist):
         super().__init__(project, arglist)
         
-        self.dbname = f'{project}.db'        
-        self.db = None #TODO: Sqlite here
+        self.dbname = f'{project}.db'
+        self.db = sqlite3.connect(self.dbname)
+        self.db.execute('''CREATE TABLE IF NOT EXISTS data
+                           (key TEXT, id TEXT, payload TEXT,
+                            PRIMARY KEY (key, id))''')
+        self.db.commit()
            
     def save(self, key, id, payload):
-        # Save payload for key/id
-        pass
+        with self.db:
+            self.db.execute('INSERT OR REPLACE INTO data (key, id, payload) VALUES (?, ?, ?)',
+                            (key, id, json.dumps(payload)))
     
     def load(self, key, id):
-        # Load payload for key/id
-        pass
+        cursor = self.db.execute('SELECT payload FROM data WHERE key = ? AND id = ?', (key, id))
+        result = cursor.fetchone()
+        return json.loads(result[0]) if result else None
     
     def find(self, key):
-        # Return a list of (id, payload) of object matching this key
-        pass       
+        cursor = self.db.execute('SELECT id, payload FROM data WHERE key = ?', (key,))
+        return [(row[0], json.loads(row[1])) for row in cursor.fetchall()]
 
 class PipelineStep:  
   def __init__(self, step:str, outkey:str, inkey:str = None, **params):
