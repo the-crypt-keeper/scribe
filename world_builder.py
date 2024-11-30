@@ -171,32 +171,40 @@ PIPELINE = [
 ]
     
 if __name__ == "__main__":
+  import argparse
+
+  parser = argparse.ArgumentParser(description="World Builder")
+  parser.add_argument("--watch", action="store_true", help="Watch mode")
+  parser.add_argument("--project", type=str, required=True, help="Project name")
+  parser.add_argument("--step", action="append", nargs="+", help="Steps to run")
+
+  args = parser.parse_args()
+
   arglist = {}
-  step_dict = { x.step: x for x in PIPELINE }
+  step_dict = {x.step: x for x in PIPELINE}
   running_steps = []
-  sysargs = sys.argv[1:]
-  
-  watch = False
-  if sysargs[0] == '--watch': 
-    sysargs.pop()
-    watch = True
-    
-  project = sysargs.pop()
-  
-  for arg in sysargs:
-    step, *parts = arg.split('/')
-    if step not in step_dict: raise Exception(f'Step {step} was not found.')
-    running_steps.append(step_dict[step])
-    for arg in parts:
-      k,v = arg.split('=')
-      arglist[f'{step}:{k}'] = v
+
+  if args.step:
+    for step_group in args.step:
+      for step_arg in step_group:
+        step, *parts = step_arg.split('/')
+        if step not in step_dict:
+          raise Exception(f'Step {step} was not found.')
+        running_steps.append(step_dict[step])
+        for arg in parts:
+          k, v = arg.split('=')
+          arglist[f'{step}:{k}'] = v
 
   # Init core
-  scr = SQLiteScribe(project, arglist)
-  for step in PIPELINE: scr.add_step(step)
-  
+  scr = SQLiteScribe(args.project, arglist)
+  for step in PIPELINE:
+    scr.add_step(step)
+
   # Run all steps that have inputs or need outputs.
   for step in PIPELINE:
-    if step not in running_steps: continue
-    print(f"Step: {step.step}")
-    scr.run_single_step(step.step)
+    if not running_steps or step in running_steps:
+      print(f"Step: {step.step}")
+      scr.run_single_step(step.step)
+
+  if args.watch:
+    print("Watch mode enabled. (Not implemented)")
