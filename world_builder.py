@@ -1,7 +1,6 @@
-import json
-import fire
+import sys
 import random
-from base import Scribe
+from base import *
 
 TECHNIQUES = [
   {
@@ -116,50 +115,88 @@ We will create the world by exploring the following aspects in detail:
    - Describe the inhabitants, their culture, society, and way of life.
    - Touch on the world's history or origin story if relevant.
 
-4. Twist:
+4. Sensory Details:
+   - Provide specific sensory information about the world (sights, sounds, smells, textures, tastes).
+   - Use these details to make the world feel more immersive and tangible.
+
+5. Challenges and Opportunities:
+   - Describe some of the main challenges faced by the inhabitants of this world.
+   - Highlight unique opportunities or advantages that exist in this world.
+      
+6. Twist:
    - Introduce an unexpected, interesting, and non-obvious detail about the world.
    - This twist should reveal a hidden depth or complexity to the world, challenging initial perceptions.
    - Explain how this twist impacts the world and its inhabitants.
 
-5. Potential Story Seeds:
+7. Potential Story Seeds:
    - Suggest 2-3 potential story ideas or conflicts that could arise in this world.
    - These seeds should be unique to the world and stem from its particular characteristics.
 
-6. Sensory Details:
-   - Provide specific sensory information about the world (sights, sounds, smells, textures, tastes).
-   - Use these details to make the world feel more immersive and tangible.
-
-7. Challenges and Opportunities:
-   - Describe some of the main challenges faced by the inhabitants of this world.
-   - Highlight unique opportunities or advantages that exist in this world.
-
 Create a distinct and richly detailed example world using this technique, showcasing the versatility of the {{title}} technique."""
 
-SAMPLER = {
-    'temperature': 1.0,
-    'min_p': 0.05,
-    'repetition_penalty': 1.1,
-    'max_tokens': 2048,
-    'min_tokens': 10 
-}
-
-class WorldBuilder(Scribe):
-    def generate_vars(self):        
+class StepWorldGenerationPrompt(StepExpandTemplateWoldLists):
+    def generate_input(self):
         method = random.choice(TECHNIQUES)
         random_words = self.get_random_words('basic', 3) + self.get_random_words('advanced', 3)
-        vars = { 'random_words': ', '.join(random_words), **method }
-        return vars
-      
-    def prompt_template(self):
-        return PROMPT_TEMPLATE
+        return { 'random_words': ', '.join(random_words), **method }
 
-def main(model: str, num_samples: int = 50, num_parallel: int = 1, num_batch: int = 1, tokenizer: str = None):
-    wb = WorldBuilder(model)
-    if tokenizer: wb.completion_mode(tokenizer)    
-    with open(wb.make_output_filename('ideas'), 'a') as outf:  
-      for idea in wb.parallel_generator(num_parallel, num_samples, SAMPLER, num_batch):
-        outf.write(json.dumps(idea)+'\n')
-        outf.flush()
+EXTRACTION_PROMPT = """The text provided by the user describes imaginary worlds and is always organized into 7 sections: Concept, World Name, Description, Twist, Sensory Details, Story Seeds, Challenges and Opportunities.
 
+FULLY AND COMPLETELY map the user input into a list of JSON objects with the following schema:
+
+{
+    "concept": "<Concept including key principles or elements>",
+    "world_name": "<The World Name>",
+    "description": "<Description>",
+    "twist": "<Twist>",
+    "story_seeds": ["<A story idea that could arise in this world>","<another story idea...>"],
+    "sensory": "<Sensory Details>",
+    "challenges_opportunities": "<Difficulties or opportunities faced by inhabitants of this world>"
+}
+
+INSTRUCTIONS:
+* All fields are required.
+* Preserve sub-headings.
+* Escape quotes, convert any newlines into \n and otherwise ensure the output JSON is valid.
+* Make sure ALL text between relevant headings is captured"""
+
+# class WorldImagePrompt(StepExpandTemplate):
+
+PIPELINE = [
+  StepWorldGenerationPrompt(step='WorldGenPrompt', outkey='world_prompt', template=PROMPT_TEMPLATE),
+  StepLLMCompletion(step='WorldGenComplete', inkey='world_prompt', outkey='idea'),
+  StepLLMExtraction(step='WorldExtractPrompt', inkey='idea', outkey='world', template=EXTRACTION_PROMPT, schema_json=None),
+  # WorldImagePrompt(step='WorldVisualizePrompt', input='world', output='img_prompt'),
+  # Txt2ImgCompletion(step='WorldGenerateImage', input='img_prompt', output='image')
+]
+    
 if __name__ == "__main__":
-    fire.Fire(main)
+  arglist = {}
+  step_dict = { x.step: x for x in PIPELINE }
+  running_steps = []
+  sysargs = sys.argv[1:]
+  
+  watch = False
+  if sysargs[0] == '--watch': 
+    sysargs.pop()
+    watch = True
+    
+  project = sysargs.pop()
+  
+  for arg in sysargs:
+    step, *parts = arg.split('/')
+    if step not in step_dict: raise Exception(f'Step {step} was not found.')
+    running_steps.append(step_dict[step])
+    for arg in parts:
+      k,v = arg.split('=')
+      arglist[f'{step}:{k}'] = v
+
+  # Init core
+  scr = SQLiteScribe(project, arglist)
+  for step in PIPELINE: scr.add_step(step)
+  
+  # Run all steps that have inputs or need outputs.
+  for step in PIPELINE:
+    if step not in running_steps: continue
+    print(f"Step: {step.step}")
+    scr.run_single_step(step.step)
