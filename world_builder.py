@@ -202,9 +202,9 @@ if __name__ == "__main__":
 
   # Run all steps that have inputs or need outputs.
   for step in PIPELINE:
-    if not running_steps or step in running_steps:
+    if step in running_steps:
       print(f"Step: {step.step}")
       scr.run_single_step(step.step)
 
-  if args.watch:
-    print("Watch mode enabled. (Not implemented)")
+  # if args.watch:
+  #   print("Watch mode enabled. (Not implemented)")
