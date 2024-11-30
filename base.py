@@ -1,13 +1,11 @@
 import random
 import time
-import litellm
-import requests
 import os
 import re
+import uuid
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from token_tools import build_tokenizer
-from word_tools import create_dictionaries
+from llm_tools import build_tokenizer, universal_llm_request
 from jinja2 import Template
 
 SAMPLER = {
@@ -18,13 +16,28 @@ SAMPLER = {
     'min_tokens': 10 
 }
 
-API_BASE_URL = os.getenv('OPENAI_BASE_URL',"http://100.109.96.89:3333/v1")
-API_KEY = os.getenv('OPENAI_API_KEY', "xx-ignored")
+def create_dictionaries():
+    import nltk
+    from nltk.corpus import words, brown
+        
+    nltk.download('brown', quiet=True)
+    nltk.download('words', quiet=True)
+    
+    basic_words = words.words('en-basic')
+    advanced_words = list(set(brown.words(categories=['adventure','fiction','humor','science_fiction','romance'])))
+    
+    with open('basic.txt', 'w') as f:
+        for word in sorted(basic_words):
+            f.write(f"{word}\n")
+    
+    with open('advanced.txt', 'w') as f:
+        for word in sorted(advanced_words):
+            if not (word[0].isdigit() or word[0].isalpha()): continue
+            f.write(f"{word}\n")
 
 class Scribe():
     def __init__(self, model):
-        self.model = model.replace('llama/','')
-        self.api_mode_llama = 'llama/' in model           
+        self.model = model
         self.word_lists = {}
         if not os.path.isfile('basic.txt'): create_dictionaries()
         self.load_word_list('basic.txt', 'basic')
@@ -65,27 +78,8 @@ class Scribe():
         return (messages, vars)
 
     def _process_prompt(self, messages, params, n, vars):
-        if self.api_mode_llama:
-            if n != 1: raise Exception('llamacpp backend only supports n=1')
-            payload = {
-                'model': self.model,
-                'prompt': messages[0]['content'],
-                **params
-            }
-            headers = { 'Authentication': 'Bearer '+API_KEY }
-            response = requests.post(API_BASE_URL+'/completions', json=payload, headers=headers)
-            answers = [response.json()['content']]
-        else:
-            response = litellm.completion(
-                model='openai/'+self.model if not self.completion else 'text-completion-openai/'+self.model,
-                n=n,
-                messages=messages,
-                api_base=API_BASE_URL,
-                api_key=API_KEY,
-                **params
-            )
-            answers = [x.message.content for x in response.choices]
-        ideas = [{'timestamp': time.time(), 'model': self.model, 'result': answer, 'vars': vars} for answer in answers]
+        answers = universal_llm_request(self.completion, self.model, messages, params, n)           
+        ideas = [{'timestamp': time.time(), 'uuid': str(uuid.uuid4()), 'model': self.model, 'result': answer, 'vars': vars} for answer in answers]
         return ideas
     
     def parallel_generator(self, num_parallel, num_samples, params, n):      
