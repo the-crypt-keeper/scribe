@@ -19,9 +19,11 @@ class TransformStep:
   def run(self, id, input):
     raise Exception('run() must be implemented.')
 
-  def pending_inputs(self):
-    inputs = [ (id, payload) for key, id, payload, meta in self.core.find(key=self.inkey) if payload ]
-    outputs = [ id for key, id, payload, meta in self.core.find(key=self.outkey) ]
+  def pending_inputs(self, all_inputs = None, all_outputs = None):
+    if all_inputs is None: all_inputs = self.core.find(key=self.inkey)
+    if all_outputs is None: all_outputs = self.core.find(key=self.outkey)
+    inputs = [ (id, payload) for key, id, payload, meta in all_inputs if payload ]
+    outputs = [ id for key, id, payload, meta in all_outputs ]
     queued = list(self.futures.keys())
     return [ (input_id, payload) for input_id, payload in inputs if input_id not in outputs and input_id not in queued ]
 
@@ -54,6 +56,22 @@ class StepExpandTemplate(TransformStep):
         return text, {}
         
 class StepLLMCompletion(TransformStep):
+    def pending_inputs(self):        
+        all_inputs = self.core.find(key=self.inkey)
+        all_outputs = self.core.find(key=self.outkey)
+        
+        model_max = self.params.get('model_max')
+        if model_max is not None: 
+            model = self.params.get('model')
+            model_max = int(model_max)
+            model_count = len([id for key, id, payload, meta in all_outputs if meta is not None and meta['model'] == model])
+            if model_count >= model_max:
+                print(f"{self.step} hit model_max={model_max} for model={model}")
+                return []
+        
+        # Original logic if model_max isn't hit.
+        return super().pending_inputs(all_inputs, all_outputs)
+    
     def run(self, id, input):
         self.model = self.params.get('model')
         self.tokenizer = self.params.get('tokenizer')
