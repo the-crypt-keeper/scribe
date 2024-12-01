@@ -2,6 +2,8 @@ from llm_tools import build_tokenizer, universal_llm_request, simple_extract_jso
 from jinja2 import Template
 import uuid
 import time
+import requests
+import os
 
 class TransformStep:
   def __init__(self, step:str, outkey:str, inkey:str = None, **params):
@@ -105,9 +107,6 @@ class StepLLMExtraction(TransformStep):
 
 class StepText2Image(TransformStep):
     def run(self, id, input):
-        import requests
-        import base64
-
         width = int(self.params.get('width', 512))
         height = int(self.params.get('height', 512))
         steps = int(self.params.get('steps', 20))
@@ -118,8 +117,9 @@ class StepText2Image(TransformStep):
             "width": width,
             "height": height
         }
-
-        response = requests.post(url=f"http://127.0.0.1:7860/sdapi/v1/txt2img", json=payload)
+        
+        IMAGE_API_URL = os.getenv('IMAGE_API_URL', 'http://127.0.0.1:5001')
+        response = requests.post(url=f"{IMAGE_API_URL}/sdapi/v1/txt2img", json=payload)
         
         if response.status_code != 200:
             raise Exception(f"AUTOMATIC1111 API request failed with status code {response.status_code}")
