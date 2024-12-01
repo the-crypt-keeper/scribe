@@ -14,16 +14,26 @@ def load_scribe(project_name):
 
 @st.cache_data
 def create_merged_dataframe(_scribe):
-    worlds = _scribe.find(key='world')
-    df = pd.DataFrame([
-        {
-            'id': id,
-            'model': meta.get('model', ''),
-            'method': None, #TODO meta.get('method', ''),
-            **payload
-        }
-        for _, id, payload, meta in worlds
-    ])
+    all_ids = _scribe.all_ids()
+    data = []
+    for id in all_ids:
+        world_data = _scribe.find(key='world', id=id)
+        idea_data = _scribe.find(key='idea', id=id)
+        vars_data = _scribe.find(key='vars', id=id)
+        
+        if world_data:
+            _, _, world_payload, _ = world_data[0]
+            _, _, _, idea_meta = idea_data[0] if idea_data else (None, None, None, {})
+            _, _, vars_payload, _ = vars_data[0] if vars_data else (None, None, {}, None)
+            
+            data.append({
+                'id': id,
+                'model': idea_meta.get('model', ''),
+                'method': vars_payload.get('method', ''),
+                **world_payload
+            })
+    
+    df = pd.DataFrame(data)
     return df
 
 def find_world_by_id(merged_df, world_id):
