@@ -17,8 +17,8 @@ class TransformStep:
     raise Exception('run() must be implemented.')
 
   def pending_inputs(self):
-    inputs = self.core.find(self.inkey)
-    outputs = [x[0] for x in self.core.find(self.outkey)]
+    inputs = [ (id, payload) for key, id, payload, meta in self.core.find(key=self.inkey) if payload ]
+    outputs = [ id for key, id, payload, meta in self.core.find(key=self.outkey) ]
     return [ (input_id, payload) for input_id, payload in inputs if input_id not in outputs ]
 
   def setup(self, core):
