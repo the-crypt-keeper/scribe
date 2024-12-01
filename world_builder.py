@@ -141,7 +141,15 @@ class StepWorldGeneration(GenerateStep):
         random_words = get_random_words('basic', 3) + get_random_words('advanced', 3)
         return { 'random_words': ', '.join(random_words), **method }, {}
 
-EXTRACTION_PROMPT = """The text provided by the user describes an world and is always organized into 7 sections: Concept, World Name, Description, Sensory Details, Challenges and Opportunities, Twist, Story Seeds.
+EXTRACTION_PROMPT = """The text provided by the user describes an world and is always organized into 7 sections: 
+
+- Concept
+- World Name
+- Description
+- Sensory Details
+- Challenges and Opportunities
+- Twist
+- Story Seeds
 
 FULLY AND COMPLETELY map the user input into a JSON object with the following schema:
 
@@ -159,7 +167,8 @@ INSTRUCTIONS:
 * All fields are required.
 * Preserve sub-headings.
 * Escape quotes, convert any newlines into \n and otherwise ensure the output JSON is valid.
-* Make sure ALL text between relevant headings is captured"""
+* Make sure ALL text between relevant headings is captured.
+"""
 
 from pydantic import BaseModel, Field
 from typing import List
