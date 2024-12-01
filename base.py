@@ -43,17 +43,23 @@ class Scribe():
         
     def _execute_single_step(self, step_name, id, input):
         st = self.steps[step_name]['fn']
-        if self.steps[step_name]['queue'] is None:
-            num_parallel = int(st.params.get('num_parallel', '1'))
-            self.steps[step_name]['queue'] = ThreadPoolExecutor(max_workers=num_parallel)
-
-        queue = self.steps[step_name]['queue']
-        
         print(f"> {step_name} executing {id}")
         output, meta = st.run(id, input)
         if output is not None:
             self.save(st.outkey, id, output)
             self.save('_'+st.outkey, id, json.dumps(meta))
+            
+    def _create_work_thread(self, step_name):
+        st = self.steps[step_name]['fn']       
+        num_parallel = int(st.params.get('num_parallel', '1'))
+        self.steps[step_name]['queue'] = ThreadPoolExecutor(max_workers=num_parallel)
+    
+    def _queue_work(self, step_name, id, input):
+        pass
+    
+    def _join_work_thread(self, step_name):
+        # wait until the queue for step_name is idle
+        pass
 
 import sqlite3
 
