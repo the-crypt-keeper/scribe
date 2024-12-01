@@ -1,11 +1,7 @@
 import streamlit as st
 import pandas as pd
-import json
 import sys
-import os
 import random
-import glob
-from typing import List, Dict
 from base import SQLiteScribe
 
 @st.cache_resource
@@ -29,7 +25,7 @@ def create_merged_dataframe(_scribe):
             data.append({
                 'id': id,
                 'model': idea_meta.get('model', ''),
-                'method': vars_payload.get('method', ''),
+                'method': vars_payload.get('title', ''),
                 **world_payload
             })
     
@@ -100,7 +96,7 @@ def main():
     selected_world = merged_df.iloc[st.session_state.selected_idx]
     world_id = selected_world.id[:8]
     title_world_name.write(f"<h1>{selected_world['world_name']}<sub>{world_id}</sub></h1>", unsafe_allow_html=True)
-    share_link.write(f"<a href='/?id={selected_world.name}'>Share This World</a>", unsafe_allow_html=True)       
+    share_link.write(f"<a href='/?id={world_id}'>Share This World</a>", unsafe_allow_html=True)       
     
     # Select and display an image
     available_images = get_available_images(scribe)
