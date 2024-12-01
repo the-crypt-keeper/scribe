@@ -55,11 +55,15 @@ class Scribe():
         self.steps[step_name]['queue'] = ThreadPoolExecutor(max_workers=num_parallel)
     
     def _queue_work(self, step_name, id, input):
-        pass
+        if self.steps[step_name]['queue'] is None:
+            self._create_work_thread(step_name)
+        future = self.steps[step_name]['queue'].submit(self._execute_single_step, step_name, id, input)
+        return future
     
     def _join_work_thread(self, step_name):
-        # wait until the queue for step_name is idle
-        pass
+        if self.steps[step_name]['queue'] is not None:
+            self.steps[step_name]['queue'].shutdown(wait=True)
+            self.steps[step_name]['queue'] = None
 
 import sqlite3
 

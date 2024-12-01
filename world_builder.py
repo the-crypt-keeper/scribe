@@ -184,44 +184,54 @@ PIPELINE = [
 ]
     
 if __name__ == "__main__":
-  import argparse
+    import argparse
 
-  parser = argparse.ArgumentParser(description="World Builder")
-  parser.add_argument("--watch", action="store_true", help="Watch mode")
-  parser.add_argument("--project", type=str, required=True, help="Project name")
-  parser.add_argument("--step", action="append", nargs="+", help="Steps to run")
+    parser = argparse.ArgumentParser(description="World Builder")
+    parser.add_argument("--watch", action="store_true", help="Watch mode")
+    parser.add_argument("--project", type=str, required=True, help="Project name")
+    parser.add_argument("--step", action="append", nargs="+", help="Steps to run")
 
-  args = parser.parse_args()
+    args = parser.parse_args()
 
-  step_dict = {x.step: x for x in PIPELINE}
+    step_dict = {x.step: x for x in PIPELINE}
 
-  if args.step:
-    for step_group in args.step:
-      for step_arg in step_group:
-        escaped_step_arg = step_arg.replace('//','%%')
-        step_name, *parts = step_arg.split('/')
-        parts = [p.replace('%%','/') for p in parts]
+    if args.step:
+        for step_group in args.step:
+            for step_arg in step_group:
+                escaped_step_arg = step_arg.replace('//','%%')
+                step_name, *parts = escaped_step_arg.split('/')
+                parts = [p.replace('%%','/') for p in parts]
+                
+                if step_name not in step_dict:
+                    raise Exception(f'Step {step_name} was not found, should be one of: {", ".join(step_dict.keys())}')
+                
+                print(f"CONFIG STEP: {step_name}")
+                step_dict[step_name].enabled = True
+
+                for arg in parts:
+                    k, v = arg.split('=')
+                    print(f"CONFIG ARG: {step_name}.{k} = {v}")
+                    step_dict[step_name].params[k] = v
+    
+    # Init core
+    scr = SQLiteScribe(args.project)
+    for step in PIPELINE: scr.add_step(step)
+
+    # Run all steps that have inputs or need outputs.
+    for step in PIPELINE:
+        if not step.enabled:
+            continue
+        futures = []
+        for id, input in step.pending_inputs():
+            future = scr._queue_work(step.step, id, input)
+            futures.append(future)
         
-        if step_name not in step_dict:
-          raise Exception(f'Step {step_name} was not found, should be one of: {", ".join(step_dict.keys())}')
+        # Wait for all futures to complete
+        for future in futures:
+            future.result()
         
-        print(f"CONFIG STEP: {step_name}")
-        step_dict[step_name].enabled = True
+        # Join the work thread for this step
+        scr._join_work_thread(step.step)
 
-        for arg in parts:
-          k, v = arg.split('=')
-          print(f"CONFIG ARG: {step_name}.{k} = {v}")
-          step_dict[step_name].params[k] = v
-  
-  # Init core
-  scr = SQLiteScribe(args.project)
-  for step in PIPELINE: scr.add_step(step)
-
-  # Run all steps that have inputs or need outputs.
-  for step in PIPELINE:
-    if not step.enabled: continue
-    for id, input in step.pending_inputs():
-      scr._execute_single_step(step.step, id, input)
-
-  # if args.watch:
-  #   print("Watch mode enabled. (Not implemented)")
+    if args.watch:
+        print("Watch mode enabled. (Not implemented)")
