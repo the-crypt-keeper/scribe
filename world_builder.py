@@ -1,6 +1,6 @@
-import sys
 import random
-from base import *
+from base import SQLiteScribe
+from steps import *
 
 TECHNIQUES = [
   {
