@@ -62,6 +62,11 @@ class Scribe():
         self.steps[step_name]['futures'].append(future)
         return future
     
+    def _unfinished_futures(self, step_name):
+        if self.steps[step_name]['queue'] is None:
+            return []
+        return [future for future in self.steps[step_name]['futures'] if not future.done()]
+
     def _join_work_thread(self, step_name):
         if self.steps[step_name]['queue'] is not None:
             # Wait for all futures to complete
