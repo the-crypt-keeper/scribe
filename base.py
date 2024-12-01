@@ -40,6 +40,12 @@ class Scribe():
 
     def find(self, key=None, id=None):
         pass
+
+    def all_keys(self):
+        pass
+
+    def all_ids(self):
+        pass
         
     def _execute_single_step(self, step_name, id, input):
         st = self.steps[step_name]['fn']
@@ -171,6 +177,16 @@ class SQLiteScribe(Scribe):
             else:
                 cursor = db.execute('SELECT key, id, payload, meta FROM data')
         return [(row[0], row[1], json.loads(row[2]), json.loads(row[3])) for row in cursor.fetchall()]
+
+    def all_keys(self):
+        with sqlite3.connect(self.dbname) as db:
+            cursor = db.execute('SELECT DISTINCT key FROM data')
+        return [row[0] for row in cursor.fetchall()]
+
+    def all_ids(self):
+        with sqlite3.connect(self.dbname) as db:
+            cursor = db.execute('SELECT DISTINCT id FROM data')
+        return [row[0] for row in cursor.fetchall()]
     
 if __name__ == "__main__":
     import argparse
@@ -180,6 +196,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     sc = SQLiteScribe(project=args.project)
+    
+    print("All keys:")
+    print(sc.all_keys())
+    
+    print("\nAll ids:")
+    print(sc.all_ids())
+    
+    print("\nAll documents:")
     docs = sc.find()
     for key, id, payload, meta in docs:
         print(id, key, type(payload), str(payload)[0:40])
