@@ -97,7 +97,7 @@ def main():
     if selected_world.id in available_images:
         image_data, _ = scribe.load('image', selected_world.id)
         # create <img> tag from base64 encoded data
-        img_tag = f'<img src="data:image/png;base64,{image_data}" style="width:100%;height:auto;">'
+        img_tag = f'<center><img src="data:image/png;base64,{image_data}" style="width:auto;height:100%;"></center>'
         st.markdown(img_tag, unsafe_allow_html=True)
     else:
         st.warning(f"No image found for World ID {selected_world.id}")
