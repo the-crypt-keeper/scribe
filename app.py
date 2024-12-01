@@ -95,10 +95,12 @@ def main():
     # Select and display an image
     available_images = get_available_images(scribe)
     if selected_world.id in available_images:
-        image_data, _ = scribe.load('image', selected_world.name)
+        image_data, _ = scribe.load('image', selected_world.id)
         # create <img> tag from base64 encoded data
+        img_tag = f'<img src="data:image/png;base64,{image_data}" style="width:100%;height:auto;">'
+        st.markdown(img_tag, unsafe_allow_html=True)
     else:
-        st.warning(f"No image found for World ID {selected_world.name}")
+        st.warning(f"No image found for World ID {selected_world.id}")
             
     # Display world details
     detail_order = ['concept', 'description', 'twist', 'sensory', 'challenges_opportunities', 'story_seeds']
