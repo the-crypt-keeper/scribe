@@ -78,7 +78,7 @@ class Scribe():
             self.steps[step_name]['queue'] = None
             self.steps[step_name]['futures'] = []
     
-    def run_all_steps(self):
+    def run_all_steps(self, sleep_delay = 5):
         while True:
             new_work = False
             for step_name, step_info in sorted(self.steps.items(), key=lambda x: x[1]['seq']):
@@ -88,20 +88,21 @@ class Scribe():
                     for id, input in pending_inputs:
                         self._queue_work(step_name, id, input)
                     new_work = True
-                    break  # End this iteration and go to sleep
+                    
+            if new_work:
+                time.sleep(sleep_delay)
+                continue
+            
+            for step_name in self.steps:
+                if self._unfinished_futures(step_name):
+                    time.sleep(sleep_delay)
+                    continue
 
-            if not new_work:
-                unfinished_futures = []
-                for step_name in self.steps:
-                    unfinished_futures.extend(self._unfinished_futures(step_name))
+            # If there was no new work and there are no pending futures, the process is complete
+            for step_name in self.steps:
+                self._join_work_thread(step_name)
                 
-                if unfinished_futures:
-                    break  # End this iteration and go to sleep
-
-                # If there was no new work and there are no pending futures, the process is complete
-                for step_name in self.steps:
-                    self._join_work_thread(step_name)
-                break  # Exit the while loop
+            break  # Exit the while loop
 
 import sqlite3
 
