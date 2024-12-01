@@ -217,11 +217,8 @@ if __name__ == "__main__":
     scr = SQLiteScribe(args.project)
     for step in PIPELINE: scr.add_step(step)
 
-    # Run all steps that have inputs or need outputs.
-    for step in PIPELINE:
-        if not step.enabled:
-            continue
-        scr.execute_step(step)
+    # Run all steps
+    scr.run_all_steps()
 
     if args.watch:
         print("Watch mode enabled. (Not implemented)")
