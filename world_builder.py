@@ -139,8 +139,7 @@ class StepWorldGeneration(GenerateStep):
         from language_tools import get_random_words      
         method = random.choice(TECHNIQUES)
         random_words = get_random_words('basic', 3) + get_random_words('advanced', 3)
-        vars = { 'random_words': ', '.join(random_words), **method }
-        return json.dumps(vars), {}
+        return { 'random_words': ', '.join(random_words), **method }, {}
 
 EXTRACTION_PROMPT = """The text provided by the user describes an world and is always organized into 7 sections: Concept, World Name, Description, Sensory Details, Challenges and Opportunities, Twist, Story Seeds.
 
@@ -218,7 +217,7 @@ if __name__ == "__main__":
     for step in PIPELINE: scr.add_step(step)
 
     # Run all steps
-    scr.run_all_steps()
-
-    if args.watch:
-        print("Watch mode enabled. (Not implemented)")
+    try:
+      scr.run_all_steps()
+    except Exception as e:
+      scr.shutdown()

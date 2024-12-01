@@ -1,10 +1,7 @@
-import random
 import time
-import os
 import json
 import uuid
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from llm_tools import build_tokenizer, universal_llm_request, simple_extract_json
 from jinja2 import Template
 
@@ -46,10 +43,13 @@ class Scribe():
     def _execute_single_step(self, step_name, id, input):
         st = self.steps[step_name]['fn']
         print(f"> {step_name} executing {id}")
-        output, meta = st.run(id, input)
+        try:
+            output, meta = st.run(id, input)
+        except Exception as e:
+            print("ERROR: ", str(e))
         if output is not None:
             self.save(st.outkey, id, output)
-            self.save('_'+st.outkey, id, json.dumps(meta))
+            self.save('_'+st.outkey, id, meta)
             
     def _create_work_thread(self, step_name):
         st = self.steps[step_name]['fn']       
@@ -78,11 +78,16 @@ class Scribe():
             self.steps[step_name]['queue'] = None
             self.steps[step_name]['futures'] = []
     
+    def shutdown(self):
+        for step_name in self.steps:
+            self._join_work_thread(step_name)
+            
     def run_all_steps(self, sleep_delay = 5):
         while True:
             new_work = False
             for step_name, step_info in sorted(self.steps.items(), key=lambda x: x[1]['seq']):
                 step = step_info['fn']
+                if not step.enabled: continue
                 pending_inputs = list(step.pending_inputs())
                 if pending_inputs:
                     for id, input in pending_inputs:
@@ -95,6 +100,7 @@ class Scribe():
             
             for step_name in self.steps:
                 if self._unfinished_futures(step_name):
+                    print(f'{step_name} busy, waiting...')
                     time.sleep(sleep_delay)
                     continue
 
@@ -111,6 +117,7 @@ class SQLiteScribe(Scribe):
         super().__init__(project)
         
         self.dbname = f'{project}.db'
+        
         self.db = sqlite3.connect(self.dbname)
         self.db.execute('''CREATE TABLE IF NOT EXISTS data
                            (key TEXT, id TEXT, payload TEXT,
@@ -118,21 +125,23 @@ class SQLiteScribe(Scribe):
         self.db.commit()
            
     def save(self, key, id, payload):
-        with self.db:
-            self.db.execute('INSERT OR REPLACE INTO data (key, id, payload) VALUES (?, ?, ?)',
-                            (key, id, json.dumps(payload)))
+        with sqlite3.connect(self.dbname) as db:
+            db.execute('INSERT OR REPLACE INTO data (key, id, payload) VALUES (?, ?, ?)', (key, id, json.dumps(payload)))
     
     def load(self, key, id):
-        cursor = self.db.execute('SELECT payload FROM data WHERE key = ? AND id = ?', (key, id))
-        result = cursor.fetchone()
+        with sqlite3.connect(self.dbname) as db:
+            cursor = db.execute('SELECT payload FROM data WHERE key = ? AND id = ?', (key, id))
+            result = cursor.fetchone()
         return json.loads(result[0]) if result else None
     
     def find(self, key):
-        cursor = self.db.execute('SELECT id, payload FROM data WHERE key = ?', (key,))
+        with sqlite3.connect(self.dbname) as db:
+            cursor = db.execute('SELECT id, payload FROM data WHERE key = ?', (key,))
         return [(row[0], json.loads(row[1])) for row in cursor.fetchall()]
 
     def all(self):
-        cursor = self.db.execute('SELECT id, payload, key FROM data')
+        with sqlite3.connect(self.dbname) as db:
+            cursor = db.execute('SELECT id, payload, key FROM data')
         return [(row[2], row[0], json.loads(row[1])) for row in cursor.fetchall()]
     
 class TransformStep:
@@ -168,7 +177,6 @@ class GenerateStep(TransformStep):
 
 class StepExpandTemplate(TransformStep):
     def run(self, id, input):
-        input = json.loads(input)
         tpl = Template(self.params.get('template'))
         text = tpl.render(**input)        
         return text, {}
@@ -233,7 +241,7 @@ class StepLLMExtraction(TransformStep):
                     
         answers = universal_llm_request(False, self.model, messages, sampler, 1)       
         data = simple_extract_json(answers[0])        
-        return json.dumps(data), meta
+        return data, meta
     
     # def parallel_generator(self, num_parallel, num_samples, params, n):      
     #     with ThreadPoolExecutor(max_workers=num_parallel) as executor:
@@ -264,4 +272,4 @@ if __name__ == "__main__":
     sc = SQLiteScribe(project=args.project)
     docs = sc.all()
     for key, id, content in docs:
-        print(id, key, str(content)[0:40])
+        print(id, key, type(content), str(content)[0:40])
