@@ -41,13 +41,18 @@ class Scribe():
     def _execute_single_step(self, step_name, id, input):
         st = self.steps[step_name]['fn']
         print(f"> {step_name} executing {id}")
+        if not self.db_start(st.outkey, id):
+            print(f"ERROR: {step_name} for {id} already exists")
+            return
         try:
             output, meta = st.run(id, input)
+            if output is not None:
+                self.db_end(st.outkey, id, output, meta)
+            else:
+                self.db_abort(st.outkey, id)
         except Exception as e:
             print("ERROR: ", str(e))
-        if output is not None:
-            self.save(st.outkey, id, output)
-            self.save('_'+st.outkey, id, meta)
+            self.db_abort(st.outkey, id)
             
     def _create_work_thread(self, step_name):
         st = self.steps[step_name]['fn']       
@@ -116,29 +121,44 @@ class SQLiteScribe(Scribe):
         
         self.db = sqlite3.connect(self.dbname)
         self.db.execute('''CREATE TABLE IF NOT EXISTS data
-                           (key TEXT, id TEXT, payload TEXT,
+                           (key TEXT, id TEXT, payload TEXT, meta TEXT,
                             PRIMARY KEY (key, id))''')
         self.db.commit()
            
-    def save(self, key, id, payload):
+    def db_start(self, key, id):
+        try:
+            with sqlite3.connect(self.dbname) as db:
+                db.execute('INSERT INTO data (key, id, payload, meta) VALUES (?, ?, NULL, NULL)', (key, id))
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def db_end(self, key, id, payload, meta):
         with sqlite3.connect(self.dbname) as db:
-            db.execute('INSERT OR REPLACE INTO data (key, id, payload) VALUES (?, ?, ?)', (key, id, json.dumps(payload)))
-    
+            db.execute('UPDATE data SET payload = ?, meta = ? WHERE key = ? AND id = ?', 
+                       (json.dumps(payload), json.dumps(meta), key, id))
+
+    def db_abort(self, key, id):
+        with sqlite3.connect(self.dbname) as db:
+            db.execute('DELETE FROM data WHERE key = ? AND id = ?', (key, id))
+
     def load(self, key, id):
         with sqlite3.connect(self.dbname) as db:
-            cursor = db.execute('SELECT payload FROM data WHERE key = ? AND id = ?', (key, id))
+            cursor = db.execute('SELECT payload, meta FROM data WHERE key = ? AND id = ?', (key, id))
             result = cursor.fetchone()
-        return json.loads(result[0]) if result else None
-    
-    def find(self, key):
-        with sqlite3.connect(self.dbname) as db:
-            cursor = db.execute('SELECT id, payload FROM data WHERE key = ?', (key,))
-        return [(row[0], json.loads(row[1])) for row in cursor.fetchall()]
+        return (json.loads(result[0]), json.loads(result[1])) if result else (None, None)
 
-    def all(self):
+    def find(self, key=None, id=None):
         with sqlite3.connect(self.dbname) as db:
-            cursor = db.execute('SELECT id, payload, key FROM data')
-        return [(row[2], row[0], json.loads(row[1])) for row in cursor.fetchall()]
+            if key and id:
+                cursor = db.execute('SELECT key, id, payload, meta FROM data WHERE key = ? AND id = ?', (key, id))
+            elif key:
+                cursor = db.execute('SELECT key, id, payload, meta FROM data WHERE key = ?', (key,))
+            elif id:
+                cursor = db.execute('SELECT key, id, payload, meta FROM data WHERE id = ?', (id,))
+            else:
+                cursor = db.execute('SELECT key, id, payload, meta FROM data')
+        return [(row[0], row[1], json.loads(row[2]), json.loads(row[3])) for row in cursor.fetchall()]
     
 if __name__ == "__main__":
     import argparse
