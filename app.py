@@ -13,20 +13,14 @@ def load_scribe(project_name):
     return SQLiteScribe(project=project_name)
 
 @st.cache_data
-def create_merged_dataframe(scribe):
-    worlds = scribe.find(key='world')
+def create_merged_dataframe(_scribe):
+    worlds = _scribe.find(key='world')
     df = pd.DataFrame([
         {
             'id': id,
-            'world_name': payload['world_name'],
-            'concept': payload['concept'],
-            'description': payload['description'],
-            'twist': payload['twist'],
-            'sensory': payload['sensory'],
-            'challenges_opportunities': payload['challenges_opportunities'],
-            'story_seeds': payload['story_seeds'],
             'model': meta.get('model', ''),
-            'method': meta.get('method', '')
+            'method': None, #TODO meta.get('method', ''),
+            **payload
         }
         for _, id, payload, meta in worlds
     ])
@@ -37,8 +31,8 @@ def find_world_by_id(merged_df, world_id):
     return matching_worlds.index[0] if not matching_worlds.empty else None
 
 @st.cache_data
-def get_available_images(scribe):
-    return [id for _, id, _, _ in scribe.find(key='image')]
+def get_available_images(_scribe):
+    return [id for _, id, _, _ in _scribe.find(key='image')]
 
 def main():
     st.set_page_config(page_title='Altered Worlds', layout="wide")
@@ -64,13 +58,13 @@ def main():
     merged_df = create_merged_dataframe(scribe)
 
     # Initialize session state for selected world
-    if 'selected_world' not in st.session_state:
-        st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
+    if 'selected_idx' not in st.session_state:
+        st.session_state.selected_idx = random.randint(0, len(merged_df) - 1)
         if 'id' in st.query_params:
             world_id = st.query_params['id']
             found_index = find_world_by_id(merged_df, world_id)
             if found_index is not None:
-                st.session_state.selected_world = found_index
+                st.session_state.selected_idx = found_index
 
     # Display world name as heading
     title_world_name = st.empty()
@@ -80,26 +74,29 @@ def main():
     with col0:
         share_link = st.empty()
     with col1:
-        if st.button('⬅️ Previous', disabled=(st.session_state.selected_world == 0)):
-            st.session_state.selected_world -= 1
+        if st.button('⬅️ Previous', disabled=(st.session_state.selected_idx == 0)):
+            st.session_state.selected_idx -= 1
+            st.rerun()
     with col2:
         if st.button('🎲 Random'):
-            st.session_state.selected_world = random.randint(0, len(merged_df) - 1)
+            st.session_state.selected_idx = random.randint(0, len(merged_df) - 1)
+            st.rerun()
     with col3:
-        if st.button('Next ➡️', disabled=(st.session_state.selected_world == len(merged_df) - 1)):
-            st.session_state.selected_world += 1
+        if st.button('Next ➡️', disabled=(st.session_state.selected_idx == (len(merged_df) - 1))):
+            st.session_state.selected_idx += 1
+            st.rerun()
 
     # Display world name as heading
-    selected_world = merged_df.iloc[st.session_state.selected_world]
-    world_id = selected_world.name[0:8]
+    selected_world = merged_df.iloc[st.session_state.selected_idx]
+    world_id = selected_world.id[:8]
     title_world_name.write(f"<h1>{selected_world['world_name']}<sub>{world_id}</sub></h1>", unsafe_allow_html=True)
     share_link.write(f"<a href='/?id={selected_world.name}'>Share This World</a>", unsafe_allow_html=True)       
     
     # Select and display an image
     available_images = get_available_images(scribe)
-    if selected_world.name in available_images:
+    if selected_world.id in available_images:
         image_data, _ = scribe.load('image', selected_world.name)
-        st.image(image_data)
+        # create <img> tag from base64 encoded data
     else:
         st.warning(f"No image found for World ID {selected_world.name}")
             
