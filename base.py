@@ -24,8 +24,10 @@ class Scribe():
     def add_step(self, step):
         assert step.step not in self.steps
         step.setup(self)
+        seq = len(list(self.steps.keys()))
         self.steps[step.step] = {
             'fn': step,
+            'seq': seq,
             'queue': None
         }
 
