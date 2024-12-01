@@ -26,16 +26,19 @@ class Scribe():
             'queue': None
         }
 
-    def save(self, key, id, payload):
-        pass
-    
-    def load(self, key, id):
-        pass
-    
-    def find(self, key):
+    def db_start(self, key, id):
         pass
 
-    def all(self):
+    def db_end(self, key, id, payload, meta):
+        pass
+
+    def db_abort(self, key, id):
+        pass
+
+    def load(self, key, id):
+        pass
+
+    def find(self, key=None, id=None):
         pass
         
     def _execute_single_step(self, step_name, id, input):
