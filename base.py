@@ -52,9 +52,10 @@ class Scribe():
             if output is not None:
                 self.db_end(st.outkey, id, output, meta)
             else:
+                print(f"ERROR: {step_name} for {id} returned nothing.")
                 self.db_abort(st.outkey, id)
         except Exception as e:
-            print("ERROR: ", str(e))
+            print(f"ERROR: _execute_single_step {step_name} crashed: {str(e)}")
             self.db_abort(st.outkey, id)
             
     def _create_work_thread(self, step_name):
@@ -88,33 +89,41 @@ class Scribe():
         for step_name in self.steps:
             self._join_work_thread(step_name)
             
-    def run_all_steps(self, sleep_delay = 5):
+    def run_all_steps(self, small_delay = 1, big_delay = 5):
         while True:
-            new_work = False
-            for step_name, step_info in sorted(self.steps.items(), key=lambda x: x[1]['seq']):
+            did_work = False
+            for step_name, step_info in self.steps.items():
                 step = step_info['fn']
                 if not step.enabled: continue
-                pending_inputs = list(step.pending_inputs())
+                try:
+                    pending_inputs = list(step.pending_inputs())
+                except Exception as e:
+                    print(f"ERROR: pending_inputs failed on {step_name}: {str(e)}")
+                # print(step_name, pending_inputs)
                 if pending_inputs:
                     for id, input in pending_inputs:
+                        print(f'{step_name} queued job {id}')
                         self._queue_work(step_name, id, input)
-                    new_work = True
+                    did_work = True
                     
-            if new_work:
-                time.sleep(sleep_delay)
+            if did_work:
+                time.sleep(small_delay)
                 continue
+            else:            
+                for step_name in self.steps:
+                    if self._unfinished_futures(step_name):
+                        print(f'{step_name} busy, waiting...')
+                        did_work = True
             
-            for step_name in self.steps:
-                if self._unfinished_futures(step_name):
-                    print(f'{step_name} busy, waiting...')
-                    time.sleep(sleep_delay)
-                    continue
+            if did_work:        
+                time.sleep(big_delay)
+                continue
 
             # If there was no new work and there are no pending futures, the process is complete
-            for step_name in self.steps:
-                self._join_work_thread(step_name)
-                
-            break  # Exit the while loop
+            print('Nothing left to do, shutting down.')
+            for step_name in self.steps:                
+                self._join_work_thread(step_name)                
+            break
 
 class SQLiteScribe(Scribe):
     def __init__(self, project):
@@ -131,7 +140,7 @@ class SQLiteScribe(Scribe):
     def db_start(self, key, id):
         try:
             with sqlite3.connect(self.dbname) as db:
-                db.execute('INSERT INTO data (key, id, payload, meta) VALUES (?, ?, NULL, NULL)', (key, id))
+                db.execute('INSERT INTO data (key, id, payload, meta) VALUES (?, ?, ?, ?)', (key, id, 'null', 'null'))
             return True
         except sqlite3.IntegrityError:
             return False
