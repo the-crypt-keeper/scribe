@@ -16,36 +16,18 @@ SAMPLER = {
     'min_tokens': 10 
 }
 
-def create_dictionaries():
-    import nltk
-    from nltk.corpus import words, brown
-        
-    nltk.download('brown', quiet=True)
-    nltk.download('words', quiet=True)
-    
-    basic_words = words.words('en-basic')
-    advanced_words = list(set(brown.words(categories=['adventure','fiction','humor','science_fiction','romance'])))
-    
-    with open('basic.txt', 'w') as f:
-        for word in sorted(basic_words):
-            f.write(f"{word}\n")
-    
-    with open('advanced.txt', 'w') as f:
-        for word in sorted(advanced_words):
-            if not (word[0].isdigit() or word[0].isalpha()): continue
-            f.write(f"{word}\n")
-
 class Scribe():
-    def __init__(self, project, arglist):
-        self.project = project
-        self.arglist = arglist
-        
+    def __init__(self, project):
+        self.project = project       
         self.steps = {}
         
     def add_step(self, step):
         assert step.step not in self.steps
-        step.setup(self, self.arglist)
-        self.steps[step.step] = step
+        step.setup(self)
+        self.steps[step.step] = {
+            'fn': step,
+            'queue': None
+        }
 
     def save(self, key, id, payload):
         pass
@@ -59,32 +41,25 @@ class Scribe():
     def all(self):
         pass
         
-    def run_single_step(self, step_name):
-        st = self.steps[step_name]
-        inputs = []
+    def _execute_single_step(self, step_name, id, input):
+        st = self.steps[step_name]['fn']
+        if self.steps[step_name]['queue'] is None:
+            num_parallel = int(st.params.get('num_parallel', '1'))
+            self.steps[step_name]['queue'] = ThreadPoolExecutor(max_workers=num_parallel)
+
+        queue = self.steps[step_name]['queue']
         
-        if st.inkey is None:
-            if not st.num_samples: raise Exception('Pipeline step without input requires a num_samples parameter.')
-            outputs = self.find(st.outkey)
-            if len(outputs) < st.num_samples:
-                inputs = [ (str(uuid.uuid4()), None) for _ in range(st.num_samples - len(outputs)) ]
-        else:
-            inputs = self.find(st.inkey)
-        
-        print(f"run_single_step() {step_name} with {len(inputs)} inputs")
-        for id, input in inputs:
-            if self.load(st.outkey, id) is None:
-                print(f"> {step_name} executing {id}")
-                output, meta = st.run(id, input)
-                if output is not None:
-                    self.save(st.outkey, id, output)
-                    self.save('_'+st.outkey, id, json.dumps(meta))
+        print(f"> {step_name} executing {id}")
+        output, meta = st.run(id, input)
+        if output is not None:
+            self.save(st.outkey, id, output)
+            self.save('_'+st.outkey, id, json.dumps(meta))
 
 import sqlite3
 
 class SQLiteScribe(Scribe):
-    def __init__(self, project, arglist):
-        super().__init__(project, arglist)
+    def __init__(self, project):
+        super().__init__(project)
         
         self.dbname = f'{project}.db'
         self.db = sqlite3.connect(self.dbname)
@@ -111,58 +86,49 @@ class SQLiteScribe(Scribe):
         cursor = self.db.execute('SELECT id, payload, key FROM data')
         return [(row[2], row[0], json.loads(row[1])) for row in cursor.fetchall()]
     
-class PipelineStep:  
+class TransformStep:
   def __init__(self, step:str, outkey:str, inkey:str = None, **params):
     self.step = step
     self.inkey = inkey
     self.outkey = outkey
     self.params = params
+    
     self.core = None
+    self.enabled = False
     
   def run(self, id, input):
     raise Exception('run() must be implemented.')
 
-  def setup(self, core, arglist):
+  def pending_inputs(self):
+    inputs = self.core.find(self.inkey)
+    outputs = [x[0] for x in self.core.find(self.outkey)]
+    return [ (input_id, payload) for input_id, payload in inputs if input_id not in outputs ]
+
+  def setup(self, core):
     self.core = core
-    self.num_samples = int(arglist.get(f'{self.step}:num_samples', '0'))
     
-class StepExpandTemplate(PipelineStep):
-    def setup(self, core, arglist):
-        super().setup(core, arglist)
-            
-    def generate_input(self):
-        raise Exception('generate_input() must be implemented to use this Step without an input key.')
+class GenerateStep(TransformStep):
+  def __init__(self, step:str, outkey:str, **params):
+    super().__init__(step, outkey, None, **params)
     
+  def pending_inputs(self):
+    num_samples = int(self.params.get('num_samples', '0'))
+    if not num_samples: raise Exception(f'{self.step} requires a num_samples parameter.')
+    outputs = [x[0] for x in self.core.find(self.outkey)]
+    return [ (str(uuid.uuid4()), None) for _ in range(max(0,num_samples - len(outputs))) ]
+
+class StepExpandTemplate(TransformStep):
     def run(self, id, input):
-        input = self.generate_input() if input is None else json.loads(input)
+        input = json.loads(input)
         tpl = Template(self.params.get('template'))
         text = tpl.render(**input)        
         return text, {}
-
-class StepExpandTemplateWoldLists(StepExpandTemplate):
-    def setup(self, core, arglist):
-        super().setup(core, arglist)
-                
-        self.word_lists = {}
-        if not os.path.isfile('basic.txt'): create_dictionaries()
-        self.load_word_list('basic.txt', 'basic')
-        self.load_word_list('advanced.txt', 'advanced')           
-
-    def load_word_list(self, filename, list_name):
-        with open(filename, 'r') as f:
-            self.word_lists[list_name] = f.read().splitlines()
-
-    def get_random_words(self, list_name, num_words):
-        return random.sample(self.word_lists[list_name], num_words)
         
-class StepLLMCompletion(PipelineStep):
-    def setup(self, core, arglist):
-        super().setup(core, arglist)
-        
-        self.model = arglist.get(f'{self.step}:model')
-        self.tokenizer = arglist.get(f'{self.step}:tokenizer')        
+class StepLLMCompletion(TransformStep):
+    def run(self, id, input):
+        self.model = self.params.get('model')
+        self.tokenizer = self.params.get('tokenizer')
         self.completion_tokenizer = build_tokenizer(self.tokenizer) if self.tokenizer else None
-        
         # TODO: interface to configure this
         self.sampler = {
             'temperature': 1.0,
@@ -171,8 +137,7 @@ class StepLLMCompletion(PipelineStep):
             'max_tokens': 2048,
             'min_tokens': 10 
         }
-    
-    def run(self, id, input):
+                        
         if not self.model: raise Exception(f"LLMCompletion {self.step} requires model parameter.")
                 
         meta = {
@@ -187,15 +152,12 @@ class StepLLMCompletion(PipelineStep):
         answers = universal_llm_request(self.completion_tokenizer != None, self.model, messages, self.sampler, 1)        
         return answers[0], meta
 
-class StepLLMExtraction(PipelineStep):
-    def setup(self, core, arglist):
-        self.core = core
-        
-        self.model = arglist.get(f'{self.step}:model')        
-        self.schema_mode = arglist.get(f'{self.step}:schema_mode', 'none')
-        self.max_tokens = int(arglist.get(f'{self.step}:max_tokens', '3000'))
-
+class StepLLMExtraction(TransformStep):
     def run(self, id, input):
+        self.model = self.params.get('model')   
+        self.schema_mode = self.params.get('schema_mode','none')
+        self.max_tokens = int(self.params.get('max_tokens', '3000'))
+
         if not self.model: raise Exception(f"LLMExtraction {self.step} requires model parameter.")
 
         messages = [{'role': 'user', 'content': self.params['prompt']+"\n\n"+input}]
@@ -250,7 +212,7 @@ if __name__ == "__main__":
     parser.add_argument("--project", type=str, required=True, help="Project name")
     args = parser.parse_args()
     
-    sc = SQLiteScribe(project=args.project, arglist={})
+    sc = SQLiteScribe(project=args.project)
     docs = sc.all()
     for key, id, content in docs:
         print(id, key, str(content)[0:40])

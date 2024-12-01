@@ -134,11 +134,13 @@ We will create the world by exploring the following aspects in detail:
 
 Create a distinct and richly detailed example world using this technique, showcasing the versatility of the {{title}} technique."""
 
-class StepWorldGenerationPrompt(StepExpandTemplateWoldLists):
-    def generate_input(self):
+class StepWorldGeneration(GenerateStep):    
+    def run(self, id, input):
+        from language_tools import get_random_words      
         method = random.choice(TECHNIQUES)
-        random_words = self.get_random_words('basic', 3) + self.get_random_words('advanced', 3)
-        return { 'random_words': ', '.join(random_words), **method }
+        random_words = get_random_words('basic', 3) + get_random_words('advanced', 3)
+        vars = { 'random_words': ', '.join(random_words), **method }
+        return json.dumps(vars), {}
 
 EXTRACTION_PROMPT = """The text provided by the user describes an world and is always organized into 7 sections: Concept, World Name, Description, Sensory Details, Challenges and Opportunities, Twist, Story Seeds.
 
@@ -171,9 +173,10 @@ class World(BaseModel):
     story_seeds: List[str] = Field(description = 'Story ideas or conflicts that could arise in this world')
     sensory: str = Field(description='Specific sensory information about the world')
     challenges_opportunities: str = Field(description='Difficulties or opportunities faced by inhabitants of this world')
-    
+
 PIPELINE = [
-  StepWorldGenerationPrompt(step='WorldGenPrompt', outkey='world_prompt', template=PROMPT_TEMPLATE),
+  StepWorldGeneration(step='WorldGenScenario', outkey='vars'),
+  StepExpandTemplate(step='WorldGenPrompt', inkey='vars', outkey='world_prompt', template=PROMPT_TEMPLATE),
   StepLLMCompletion(step='WorldGenComplete', inkey='world_prompt', outkey='idea'),
   StepLLMExtraction(step='WorldExtractPrompt', inkey='idea', outkey='world', prompt=EXTRACTION_PROMPT, schema_json=World.model_json_schema()),
   # WorldImagePrompt(step='WorldVisualizePrompt', input='world', output='img_prompt'),
@@ -190,9 +193,7 @@ if __name__ == "__main__":
 
   args = parser.parse_args()
 
-  arglist = {}
   step_dict = {x.step: x for x in PIPELINE}
-  running_steps = []
 
   if args.step:
     for step_group in args.step:
@@ -200,24 +201,27 @@ if __name__ == "__main__":
         escaped_step_arg = step_arg.replace('//','%%')
         step_name, *parts = step_arg.split('/')
         parts = [p.replace('%%','/') for p in parts]
+        
         if step_name not in step_dict:
           raise Exception(f'Step {step_name} was not found, should be one of: {", ".join(step_dict.keys())}')
+        
         print(f"CONFIG STEP: {step_name}")
-        running_steps.append(step_name)
+        step_dict[step_name].enabled = True
+
         for arg in parts:
           k, v = arg.split('=')
-          arglist[f'{step_name}:{k}'] = v
-  for k,v in arglist.items():
-    print(f"CONFIG ARG: {k} = {v}")
-
+          print(f"CONFIG ARG: {step_name}.{k} = {v}")
+          step_dict[step_name].params[k] = v
+  
   # Init core
-  scr = SQLiteScribe(args.project, arglist)
+  scr = SQLiteScribe(args.project)
   for step in PIPELINE: scr.add_step(step)
 
   # Run all steps that have inputs or need outputs.
   for step in PIPELINE:
-    if step.step not in running_steps: continue
-    scr.run_single_step(step.step)
+    if not step.enabled: continue
+    for id, input in step.pending_inputs():
+      scr._execute_single_step(step.step, id, input)
 
   # if args.watch:
   #   print("Watch mode enabled. (Not implemented)")
