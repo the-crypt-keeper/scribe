@@ -140,18 +140,18 @@ class StepWorldGenerationPrompt(StepExpandTemplateWoldLists):
         random_words = self.get_random_words('basic', 3) + self.get_random_words('advanced', 3)
         return { 'random_words': ', '.join(random_words), **method }
 
-EXTRACTION_PROMPT = """The text provided by the user describes imaginary worlds and is always organized into 7 sections: Concept, World Name, Description, Twist, Sensory Details, Story Seeds, Challenges and Opportunities.
+EXTRACTION_PROMPT = """The text provided by the user describes an world and is always organized into 7 sections: Concept, World Name, Description, Sensory Details, Challenges and Opportunities, Twist, Story Seeds.
 
-FULLY AND COMPLETELY map the user input into a list of JSON objects with the following schema:
+FULLY AND COMPLETELY map the user input into a JSON object with the following schema:
 
 {
     "concept": "<Concept including key principles or elements>",
     "world_name": "<The World Name>",
     "description": "<Description>",
-    "twist": "<Twist>",
-    "story_seeds": ["<A story idea that could arise in this world>","<another story idea...>"],
     "sensory": "<Sensory Details>",
-    "challenges_opportunities": "<Difficulties or opportunities faced by inhabitants of this world>"
+    "challenges_opportunities": "<Difficulties or opportunities faced by inhabitants of this world>",
+    "twist": "<Twist>",
+    "story_seeds": ["<A story idea that could arise in this world>","<another story idea...>"]
 }
 
 INSTRUCTIONS:
@@ -160,12 +160,22 @@ INSTRUCTIONS:
 * Escape quotes, convert any newlines into \n and otherwise ensure the output JSON is valid.
 * Make sure ALL text between relevant headings is captured"""
 
-# class WorldImagePrompt(StepExpandTemplate):
+from pydantic import BaseModel, Field
+from typing import List
 
+class World(BaseModel):
+    world_name: str = Field(description='The World Name')
+    concept: str = Field(description='The way in which the concept was applied to create this world')
+    description: str = Field(description = 'Description of the world')
+    twist: str = Field(description = 'Unique Twist that makes this world interesting')
+    story_seeds: List[str] = Field(description = 'Story ideas or conflicts that could arise in this world')
+    sensory: str = Field(description='Specific sensory information about the world')
+    challenges_opportunities: str = Field(description='Difficulties or opportunities faced by inhabitants of this world')
+    
 PIPELINE = [
   StepWorldGenerationPrompt(step='WorldGenPrompt', outkey='world_prompt', template=PROMPT_TEMPLATE),
   StepLLMCompletion(step='WorldGenComplete', inkey='world_prompt', outkey='idea'),
-  StepLLMExtraction(step='WorldExtractPrompt', inkey='idea', outkey='world', template=EXTRACTION_PROMPT, schema_json=None),
+  StepLLMExtraction(step='WorldExtractPrompt', inkey='idea', outkey='world', prompt=EXTRACTION_PROMPT, schema_json=World.model_json_schema()),
   # WorldImagePrompt(step='WorldVisualizePrompt', input='world', output='img_prompt'),
   # Txt2ImgCompletion(step='WorldGenerateImage', input='img_prompt', output='image')
 ]
@@ -187,24 +197,27 @@ if __name__ == "__main__":
   if args.step:
     for step_group in args.step:
       for step_arg in step_group:
-        step, *parts = step_arg.split('/')
-        if step not in step_dict:
-          raise Exception(f'Step {step} was not found.')
-        running_steps.append(step_dict[step])
+        escaped_step_arg = step_arg.replace('//','%%')
+        step_name, *parts = step_arg.split('/')
+        parts = [p.replace('%%','/') for p in parts]
+        if step_name not in step_dict:
+          raise Exception(f'Step {step_name} was not found, should be one of: {", ".join(step_dict.keys())}')
+        print(f"CONFIG STEP: {step_name}")
+        running_steps.append(step_name)
         for arg in parts:
           k, v = arg.split('=')
-          arglist[f'{step}:{k}'] = v
+          arglist[f'{step_name}:{k}'] = v
+  for k,v in arglist.items():
+    print(f"CONFIG ARG: {k} = {v}")
 
   # Init core
   scr = SQLiteScribe(args.project, arglist)
-  for step in PIPELINE:
-    scr.add_step(step)
+  for step in PIPELINE: scr.add_step(step)
 
   # Run all steps that have inputs or need outputs.
   for step in PIPELINE:
-    if step in running_steps:
-      print(f"Step: {step.step}")
-      scr.run_single_step(step.step)
+    if step.step not in running_steps: continue
+    scr.run_single_step(step.step)
 
   # if args.watch:
   #   print("Watch mode enabled. (Not implemented)")

@@ -55,27 +55,30 @@ class Scribe():
     
     def find(self, key):
         pass
-    
+
+    def all(self):
+        pass
+        
     def run_single_step(self, step_name):
-        step = self.steps[step_name]      
+        st = self.steps[step_name]
         inputs = []
         
-        if step.input is None:
-            num_samples = step.params.get('num_samples')
-            if num_samples is None: raise Exception('Pipeline step without input requires a num_samples parameter.')
-            outputs = self.find(step.outkey)
-            if len(outputs) < num_samples:
-                inputs = [ (str(uuid.uuid4()), None) for _ in range(num_samples - len(outputs)) ]
+        if st.inkey is None:
+            if not st.num_samples: raise Exception('Pipeline step without input requires a num_samples parameter.')
+            outputs = self.find(st.outkey)
+            if len(outputs) < st.num_samples:
+                inputs = [ (str(uuid.uuid4()), None) for _ in range(st.num_samples - len(outputs)) ]
         else:
-            inputs = self.find(step.inkey)
+            inputs = self.find(st.inkey)
         
+        print(f"run_single_step() {step_name} with {len(inputs)} inputs")
         for id, input in inputs:
-            if self.load(self.outkey, id) is None:
-                print(f"{self.step} executing {id}")
-                output, meta = self.step(id, input)
+            if self.load(st.outkey, id) is None:
+                print(f"> {step_name} executing {id}")
+                output, meta = st.run(id, input)
                 if output is not None:
-                    self.save(self.outkey, id, output)
-                    self.save('_'+self.outkey, id, meta)
+                    self.save(st.outkey, id, output)
+                    self.save('_'+st.outkey, id, json.dumps(meta))
 
 import sqlite3
 
@@ -104,6 +107,10 @@ class SQLiteScribe(Scribe):
         cursor = self.db.execute('SELECT id, payload FROM data WHERE key = ?', (key,))
         return [(row[0], json.loads(row[1])) for row in cursor.fetchall()]
 
+    def all(self):
+        cursor = self.db.execute('SELECT id, payload, key FROM data')
+        return [(row[2], row[0], json.loads(row[1])) for row in cursor.fetchall()]
+    
 class PipelineStep:  
   def __init__(self, step:str, outkey:str, inkey:str = None, **params):
     self.step = step
@@ -112,17 +119,21 @@ class PipelineStep:
     self.params = params
     self.core = None
     
-  def step(self, id, input):
-    raise Exception('step() must be implemented.')
+  def run(self, id, input):
+    raise Exception('run() must be implemented.')
 
   def setup(self, core, arglist):
     self.core = core
-
+    self.num_samples = int(arglist.get(f'{self.step}:num_samples', '0'))
+    
 class StepExpandTemplate(PipelineStep):
+    def setup(self, core, arglist):
+        super().setup(core, arglist)
+            
     def generate_input(self):
         raise Exception('generate_input() must be implemented to use this Step without an input key.')
     
-    def step(self, id, input):
+    def run(self, id, input):
         input = self.generate_input() if input is None else json.loads(input)
         tpl = Template(self.params.get('template'))
         text = tpl.render(**input)        
@@ -148,10 +159,8 @@ class StepLLMCompletion(PipelineStep):
     def setup(self, core, arglist):
         super().setup(core, arglist)
         
-        self.model = self.arglist.get(f'{self.step}:model')
-        if not self.model: raise Exception(f"LLMCompletion {self.step} requires model parameter.")
-        
-        self.tokenizer = self.arglist.get(f'{self.step}:tokenizer')        
+        self.model = arglist.get(f'{self.step}:model')
+        self.tokenizer = arglist.get(f'{self.step}:tokenizer')        
         self.completion_tokenizer = build_tokenizer(self.tokenizer) if self.tokenizer else None
         
         # TODO: interface to configure this
@@ -163,7 +172,9 @@ class StepLLMCompletion(PipelineStep):
             'min_tokens': 10 
         }
     
-    def step(self, id, input):
+    def run(self, id, input):
+        if not self.model: raise Exception(f"LLMCompletion {self.step} requires model parameter.")
+                
         meta = {
             'timestamp': time.time(),
             'model': self.model,
@@ -179,13 +190,14 @@ class StepLLMCompletion(PipelineStep):
 class StepLLMExtraction(PipelineStep):
     def setup(self, core, arglist):
         self.core = core
-        self.model = self.arglist.get(f'{self.step}:model')
-        if not self.model: raise Exception(f"LLMExtraction {self.step} requires model parameter.")
         
-        self.schema_mode = self.arglist.get(f'{self.step}:schema_mode', 'none')
-        self.max_tokens = int(self.arglist.get(f'{self.step}:max_tokens', '3000'))
+        self.model = arglist.get(f'{self.step}:model')        
+        self.schema_mode = arglist.get(f'{self.step}:schema_mode', 'none')
+        self.max_tokens = int(arglist.get(f'{self.step}:max_tokens', '3000'))
 
-    def step(self, id, input):    
+    def run(self, id, input):
+        if not self.model: raise Exception(f"LLMExtraction {self.step} requires model parameter.")
+
         messages = [{'role': 'user', 'content': self.params['prompt']+"\n\n"+input}]
         sampler = { 'temperature': 0.0, 'max_tokens': self.max_tokens }
         
@@ -208,11 +220,9 @@ class StepLLMExtraction(PipelineStep):
             'sampler': sampler
         }
                     
-        answers = universal_llm_request(False, self.model, messages, sampler, 1)     
-        data = simple_extract_json(answers[0])
-        
+        answers = universal_llm_request(False, self.model, messages, sampler, 1)       
+        data = simple_extract_json(answers[0])        
         return json.dumps(data), meta
-
     
     # def parallel_generator(self, num_parallel, num_samples, params, n):      
     #     with ThreadPoolExecutor(max_workers=num_parallel) as executor:
@@ -232,3 +242,15 @@ class StepLLMExtraction(PipelineStep):
     #     safe_model_name = re.sub(r'[^a-zA-Z0-9]', '_', model_name)
     #     current_time = int(time.time())
     #     return f"{prefix}_{safe_model_name}_{current_time}.json"
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Scribe CLI")
+    parser.add_argument("--project", type=str, required=True, help="Project name")
+    args = parser.parse_args()
+    
+    sc = SQLiteScribe(project=args.project, arglist={})
+    docs = sc.all()
+    for key, id, content in docs:
+        print(id, key, str(content)[0:40])
