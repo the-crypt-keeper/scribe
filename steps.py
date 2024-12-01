@@ -102,4 +102,36 @@ class StepLLMExtraction(TransformStep):
         answers = universal_llm_request(False, self.model, messages, sampler, 1)       
         data = simple_extract_json(answers[0])        
         return data, meta
-    
+
+class StepText2Image(TransformStep):
+    def run(self, id, input):
+        import requests
+        import base64
+
+        width = int(self.params.get('width', 512))
+        height = int(self.params.get('height', 512))
+        steps = int(self.params.get('steps', 20))
+
+        payload = {
+            "prompt": input,
+            "steps": steps,
+            "width": width,
+            "height": height
+        }
+
+        response = requests.post(url=f"http://127.0.0.1:7860/sdapi/v1/txt2img", json=payload)
+        
+        if response.status_code != 200:
+            raise Exception(f"AUTOMATIC1111 API request failed with status code {response.status_code}")
+
+        r = response.json()
+        image = r['images'][0]
+        
+        meta = {
+            'timestamp': time.time(),
+            'width': width,
+            'height': height,
+            'steps': steps
+        }
+
+        return image, meta
