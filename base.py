@@ -168,6 +168,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     sc = SQLiteScribe(project=args.project)
-    docs = sc.all()
-    for key, id, content in docs:
-        print(id, key, type(content), str(content)[0:40])
+    docs = sc.find()
+    for key, id, payload, meta in docs:
+        print(id, key, type(payload), str(payload)[0:40])
