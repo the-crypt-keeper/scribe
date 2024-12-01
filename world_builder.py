@@ -185,10 +185,10 @@ class World(BaseModel):
 IMAGE_TEMPLATE = '''A movie poster with the text "{{world_name}}" at the bottom. {{description}} {{sensory}}'''
 
 PIPELINE = [
-  StepWorldGeneration(step='WorldGenScenario', outkey='vars'),
-  StepExpandTemplate(step='WorldGenPrompt', inkey='vars', outkey='world_prompt', template=PROMPT_TEMPLATE),
-  StepLLMCompletion(step='WorldGenComplete', inkey='world_prompt', outkey='idea'),
-  StepLLMExtraction(step='WorldExtractPrompt', inkey='idea', outkey='world', prompt=EXTRACTION_PROMPT, schema_json=World.model_json_schema()),
+  StepWorldGeneration(step='GenScenario', outkey='vars'),
+  StepExpandTemplate(step='GenPrompt', inkey='vars', outkey='world_prompt', template=PROMPT_TEMPLATE),
+  StepLLMCompletion(step='GenComplete', inkey='world_prompt', outkey='idea'),
+  StepLLMExtraction(step='Extract', inkey='idea', outkey='world', prompt=EXTRACTION_PROMPT, schema_json=World.model_json_schema()),
   StepExpandTemplate(step='ImagePrompt', inkey='world', outkey='img_prompt', template=IMAGE_TEMPLATE),
   StepText2Image(step='Text2Image', inkey='img_prompt', outkey='image')
 ]
