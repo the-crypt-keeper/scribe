@@ -19,7 +19,8 @@ class TransformStep:
   def pending_inputs(self):
     inputs = [ (id, payload) for key, id, payload, meta in self.core.find(key=self.inkey) if payload ]
     outputs = [ id for key, id, payload, meta in self.core.find(key=self.outkey) ]
-    return [ (input_id, payload) for input_id, payload in inputs if input_id not in outputs ]
+    queued = self.core.steps[self.step]['futures'].keys() if 'futures' in self.core.steps[self.step] else []
+    return [ (input_id, payload) for input_id, payload in inputs if input_id not in outputs and input_id not in queued ]
 
   def setup(self, core):
     self.core = core
