@@ -53,27 +53,27 @@ class Scribe():
         st = self.steps[step_name]['fn']       
         num_parallel = int(st.params.get('num_parallel', '1'))
         self.steps[step_name]['queue'] = ThreadPoolExecutor(max_workers=num_parallel)
+        self.steps[step_name]['futures'] = []
     
     def _queue_work(self, step_name, id, input):
         if self.steps[step_name]['queue'] is None:
             self._create_work_thread(step_name)
         future = self.steps[step_name]['queue'].submit(self._execute_single_step, step_name, id, input)
+        self.steps[step_name]['futures'].append(future)
         return future
     
     def _join_work_thread(self, step_name):
         if self.steps[step_name]['queue'] is not None:
+            # Wait for all futures to complete
+            for future in self.steps[step_name]['futures']:
+                future.result()
             self.steps[step_name]['queue'].shutdown(wait=True)
             self.steps[step_name]['queue'] = None
+            self.steps[step_name]['futures'] = []
     
     def execute_step(self, step):
-        futures = []
         for id, input in step.pending_inputs():
-            future = self._queue_work(step.step, id, input)
-            futures.append(future)
-        
-        # Wait for all futures to complete
-        for future in futures:
-            future.result()
+            self._queue_work(step.step, id, input)
         
         # Join the work thread for this step
         self._join_work_thread(step.step)
