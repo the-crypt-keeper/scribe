@@ -1,5 +1,6 @@
 import time
 import json
+import copy
 from concurrent.futures import ThreadPoolExecutor
 import sqlite3
 
@@ -14,17 +15,13 @@ SAMPLER = {
 class Scribe():
     def __init__(self, project):
         self.project = project       
-        self.steps = {}
+        self.steps = []
         
     def add_step(self, step):
         assert step.step not in self.steps
         step.setup(self)
-        seq = len(list(self.steps.keys()))
-        self.steps[step.step] = {
-            'fn': step,
-            'seq': seq,
-            'queue': None
-        }
+        self.steps.append(step)
+        self._create_work_thread(step)
 
     def db_start(self, key, id):
         pass
@@ -47,8 +44,8 @@ class Scribe():
     def all_ids(self):
         pass
         
-    def _execute_single_step(self, step_name, id, input):
-        st = self.steps[step_name]['fn']
+    def _execute_single_step(self, st, id, input):
+        step_name = st.step
         print(f"> {step_name} executing {id}")
         if not self.db_start(st.outkey, id):
             print(f"ERROR: {step_name} for {id} already exists")
@@ -64,61 +61,71 @@ class Scribe():
             print(f"ERROR: _execute_single_step {step_name} crashed: {str(e)}")
             self.db_abort(st.outkey, id)
             
-    def _create_work_thread(self, step_name):
-        st = self.steps[step_name]['fn']       
-        num_parallel = int(st.params.get('num_parallel', '1'))
-        self.steps[step_name]['queue'] = ThreadPoolExecutor(max_workers=num_parallel)
-        self.steps[step_name]['futures'] = {}
+    def _create_work_thread(self, st):
+        num_parallel = int(st.params.get('parallel', '1'))            
+        st.queue = ThreadPoolExecutor(max_workers=num_parallel)
     
-    def _queue_work(self, step_name, id, input):
-        if self.steps[step_name]['queue'] is None:
-            self._create_work_thread(step_name)
-        future = self.steps[step_name]['queue'].submit(self._execute_single_step, step_name, id, input)
-        self.steps[step_name]['futures'][id] = future
+    def _queue_work(self, st, id, input):
+        assert st.queue != None
+        future = st.queue.submit(self._execute_single_step, st, id, input)
+        st.futures[id] = future
         return future
     
-    def _unfinished_futures(self, step_name):
-        if self.steps[step_name]['queue'] is None:
-            return []
-        return [future for id, future in self.steps[step_name]['futures'].items() if not future.done()]
+    def _unfinished_futures(self, st):
+        if st.queue is None: return []
+        return [future for id, future in st.futures.items() if not future.done()]
 
-    def _join_work_thread(self, step_name):
-        if self.steps[step_name]['queue'] is not None:
-            # Wait for all futures to complete
-            for future in self.steps[step_name]['futures'].values():
-                future.result()
-            self.steps[step_name]['queue'].shutdown(wait=True)
-            self.steps[step_name]['queue'] = None
-            self.steps[step_name]['futures'] = {}
+    def _join_work_thread(self, st):
+        if st.queue is None: return
+        for future in st.futures.values(): future.result()
+        st.queue.shutdown(wait=True)
+        st.queue = None
+        st.futures = {}
     
     def shutdown(self):
-        for step_name in self.steps:
-            self._join_work_thread(step_name)
-            
+        for st in self.steps:
+            self._join_work_thread(st)
+
     def run_all_steps(self, small_delay = 1, big_delay = 5):
         while True:
             did_work = False
-            for step_name, step_info in self.steps.items():
-                step = step_info['fn']
-                if not step.enabled: continue
+            next_steps = []
+            
+            for step in self.steps:
+                print(f"--> {step.step}")
+                if step.queue_full(): 
+                    print(f'{step.step} queue is full')
+                    next_steps.insert(0, step)
+                    continue
+                
                 try:
                     pending_inputs = list(step.pending_inputs())
                 except Exception as e:
-                    print(f"ERROR: pending_inputs failed on {step_name}: {str(e)}")
-                # print(step_name, pending_inputs)
-                if pending_inputs:
-                    for id, input in pending_inputs:
-                        print(f'{step_name} queued job {id}')
-                        self._queue_work(step_name, id, input)
+                    print(f"ERROR: pending_inputs failed on {step.step}: {str(e)}")
+                    pending_inputs = []
+                   
+                if len(pending_inputs) > 0:
+                    id, input = pending_inputs[0]
+                    print(f'{step.step} queued job {id}, still pending {len(pending_inputs)-1}.')
+                    try:
+                        self._queue_work(step, id, input)
+                    except Exception as e:
+                        print(f"ERROR: _queue_work failed on {step.step}: {str(e)}")
                     did_work = True
+                    next_steps.append(step)
+                else:
+                    next_steps.insert(0, step)
+
+            self.steps = next_steps
                     
             if did_work:
                 time.sleep(small_delay)
                 continue
             else:            
-                for step_name in self.steps:
-                    if self._unfinished_futures(step_name):
-                        print(f'{step_name} busy, waiting...')
+                for st in self.steps:
+                    num_unfinished = len(st.unfinished_futures())
+                    if num_unfinished > 0:
+                        print(f'{st.step} busy, queue depth {num_unfinished}...')
                         did_work = True
             
             if did_work:        
@@ -127,10 +134,31 @@ class Scribe():
 
             # If there was no new work and there are no pending futures, the process is complete
             print('Nothing left to do, shutting down.')
-            for step_name in self.steps:                
-                self._join_work_thread(step_name)                
+            self.shutdown()
             break
 
+    def init_pipeline(self, args, PIPELINE):
+        STEPS = {x.step: x for x in PIPELINE}
+        print("Available Steps:", ', '.join(list(STEPS.keys())))
+        
+        for step_group in args:
+            for step_arg in step_group:
+                escaped_step_arg = step_arg.replace('//','%%')
+                step_name, *parts = escaped_step_arg.split('/')
+                parts = [p.replace('%%','/') for p in parts]
+                
+                if step_name not in STEPS:
+                    raise Exception(f'Step {step_name} was not found, should be one of: {", ".join(STEPS.keys())}')
+                  
+                new_step = copy.deepcopy(STEPS[step_name])                
+                print(f"CONFIG STEP: {step_name}")
+                for arg in parts:
+                    k, v = arg.split('=')
+                    print(f"-- ARG: {step_name}.{k} = {v}")
+                    new_step.params[k] = v
+                    
+                self.add_step(new_step)
+                
 class SQLiteScribe(Scribe):
     def __init__(self, project):
         super().__init__(project)

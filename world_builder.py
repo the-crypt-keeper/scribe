@@ -200,35 +200,13 @@ if __name__ == "__main__":
     parser.add_argument("--watch", action="store_true", help="Watch mode")
     parser.add_argument("--project", type=str, required=True, help="Project name")
     parser.add_argument("--step", action="append", nargs="+", help="Steps to run")
-
     args = parser.parse_args()
 
-    step_dict = {x.step: x for x in PIPELINE}
+    if not args.step: raise Exception("At least one --step is required.")
 
-    if args.step:
-        for step_group in args.step:
-            for step_arg in step_group:
-                escaped_step_arg = step_arg.replace('//','%%')
-                step_name, *parts = escaped_step_arg.split('/')
-                parts = [p.replace('%%','/') for p in parts]
-                
-                if step_name not in step_dict:
-                    raise Exception(f'Step {step_name} was not found, should be one of: {", ".join(step_dict.keys())}')
-                
-                print(f"CONFIG STEP: {step_name}")
-                step_dict[step_name].enabled = True
-
-                for arg in parts:
-                    k, v = arg.split('=')
-                    print(f"CONFIG ARG: {step_name}.{k} = {v}")
-                    step_dict[step_name].params[k] = v
-    
-    # Init core
-    scr = SQLiteScribe(args.project)
-    for step in PIPELINE: scr.add_step(step)
-
-    # Run all steps
     try:
+      scr = SQLiteScribe(args.project)
+      scr.init_pipeline(args.step, PIPELINE)       
       scr.run_all_steps()
-    except Exception as e:
+    finally:
       scr.shutdown()

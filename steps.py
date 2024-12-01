@@ -13,7 +13,8 @@ class TransformStep:
     self.params = params
     
     self.core = None
-    self.enabled = False
+    self.queue = None
+    self.futures = {}
     
   def run(self, id, input):
     raise Exception('run() must be implemented.')
@@ -21,19 +22,28 @@ class TransformStep:
   def pending_inputs(self):
     inputs = [ (id, payload) for key, id, payload, meta in self.core.find(key=self.inkey) if payload ]
     outputs = [ id for key, id, payload, meta in self.core.find(key=self.outkey) ]
-    queued = self.core.steps[self.step]['futures'].keys() if 'futures' in self.core.steps[self.step] else []
+    queued = list(self.futures.keys())
     return [ (input_id, payload) for input_id, payload in inputs if input_id not in outputs and input_id not in queued ]
 
   def setup(self, core):
     self.core = core
-    
+
+  def queue_full(self):
+    qdepth = self.params.get('qdepth')
+    if qdepth is None: return False
+    return len(self.unfinished_futures()) >= int(qdepth)
+
+  def unfinished_futures(self):
+    if self.queue is None: return []
+    return [future for id, future in self.futures.items() if not future.done()]
+        
 class GenerateStep(TransformStep):
   def __init__(self, step:str, outkey:str, **params):
     super().__init__(step, outkey, None, **params)
     
   def pending_inputs(self):
-    num_samples = int(self.params.get('num_samples', '0'))
-    if not num_samples: raise Exception(f'{self.step} requires a num_samples parameter.')
+    num_samples = int(self.params.get('max', '0'))
+    if not num_samples: raise Exception(f'{self.step} requires a max parameter.')
     outputs = [x[0] for x in self.core.find(self.outkey)]
     return [ (str(uuid.uuid4()), None) for _ in range(max(0,num_samples - len(outputs))) ]
 
