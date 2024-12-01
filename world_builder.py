@@ -221,17 +221,7 @@ if __name__ == "__main__":
     for step in PIPELINE:
         if not step.enabled:
             continue
-        futures = []
-        for id, input in step.pending_inputs():
-            future = scr._queue_work(step.step, id, input)
-            futures.append(future)
-        
-        # Wait for all futures to complete
-        for future in futures:
-            future.result()
-        
-        # Join the work thread for this step
-        scr._join_work_thread(step.step)
+        scr.execute_step(step)
 
     if args.watch:
         print("Watch mode enabled. (Not implemented)")

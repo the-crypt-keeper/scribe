@@ -64,6 +64,19 @@ class Scribe():
         if self.steps[step_name]['queue'] is not None:
             self.steps[step_name]['queue'].shutdown(wait=True)
             self.steps[step_name]['queue'] = None
+    
+    def execute_step(self, step):
+        futures = []
+        for id, input in step.pending_inputs():
+            future = self._queue_work(step.step, id, input)
+            futures.append(future)
+        
+        # Wait for all futures to complete
+        for future in futures:
+            future.result()
+        
+        # Join the work thread for this step
+        self._join_work_thread(step.step)
 
 import sqlite3
 
