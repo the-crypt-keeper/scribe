@@ -99,7 +99,7 @@ class StepLLMCompletion(TransformStep):
         answers = universal_llm_request(self.completion_tokenizer != None, self.model, messages, self.sampler, 1)        
         return answers[0], meta
 
-class StepLLMExtraction(TransformStep):
+class StepLLMExtraction(StepLLMCompletion):
     def run(self, id, input):
         self.model = self.params.get('model')   
         self.schema_mode = self.params.get('schema_mode','none')
