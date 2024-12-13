@@ -22,6 +22,9 @@ def universal_llm_request(completion, model, messages, params, n):
         elif 'content' in response:
             # LlamaCpp legacy style response
             answers = [response['content']]
+        else:
+            print(response)
+            answers = None
             
         return answers
 

@@ -47,12 +47,13 @@ class Scribe():
     def _execute_single_step(self, st, id, input):
         step_name = st.step
         print(f"> {step_name} executing {id}")
-        if not self.db_start(st.outkey, id):
-            print(f"ERROR: {step_name} for {id} already exists")
-            return
+        if st.outkey is not None:
+            if not self.db_start(st.outkey, id):
+                print(f"ERROR: {step_name} for {id} already exists")
+                return
         try:
             output, meta = st.run(id, input)
-            if output is not None:
+            if output is not None or st.outkey is None:
                 self.db_end(st.outkey, id, output, meta)
             else:
                 print(f"ERROR: {step_name} for {id} returned nothing.")
@@ -86,13 +87,13 @@ class Scribe():
         for st in self.steps:
             self._join_work_thread(st)
 
-    def run_all_steps(self, small_delay = 1, big_delay = 5):
+    def run_all_steps(self, small_delay = 0.1, big_delay = 5):
         while True:
             did_work = False
             next_steps = []
             
             for step in self.steps:
-                print(f"--> {step.step}")
+                # print(f"--> {step.step}")
                 if step.queue_full(): 
                     print(f'{step.step} queue is full')
                     next_steps.insert(0, step)

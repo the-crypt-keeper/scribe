@@ -4,6 +4,7 @@ import uuid
 import time
 import requests
 import os
+import json
 
 class TransformStep:
   def __init__(self, step:str, outkey:str, inkey:str = None, **params):
@@ -38,7 +39,29 @@ class TransformStep:
   def unfinished_futures(self):
     if self.queue is None: return []
     return [future for id, future in self.futures.items() if not future.done()]
+
+class ExportStep(TransformStep):
+  def __init__(self, step:str, inkey:str, **params):
+    super().__init__(step, None, inkey, **params)
+
+  def pending_inputs(self, all_inputs = None, all_outputs = None):
+    if all_inputs is None: all_inputs = self.core.find(key=self.inkey)
+    inputs = [ (id, payload) for key, id, payload, meta in all_inputs if payload ]    
+    queued = list(self.futures.keys())
+    return [ (input_id, payload) for input_id, payload in inputs if input_id not in queued ]
         
+class StepJSONExport(ExportStep):
+  def run(self, id, input):
+      os.makedirs(self.core.project, exist_ok=True)
+      fname = f"{self.core.project}/{id}.json"
+      with open(fname,"w") as f:
+          if isinstance(input, str):
+            f.write(input)
+          else:
+            json.dump(input, f, indent=2)
+      print(f"{self.step} wrote {fname}")
+      return None, None
+
 class GenerateStep(TransformStep):
   def __init__(self, step:str, outkey:str, **params):
     super().__init__(step, outkey, None, **params)
@@ -68,14 +91,7 @@ class StepLLMCompletion(TransformStep):
             if model_count >= model_max:
                 print(f"{self.step} hit model_max={model_max} for model={model}")
                 return []
-        
-        # Original logic if model_max isn't hit.
-        return super().pending_inputs(all_inputs, all_outputs)
-    
-    def run(self, id, input):
-        self.model = self.params.get('model')
-        self.tokenizer = self.params.get('tokenizer')
-        self.completion_tokenizer = build_tokenizer(self.tokenizer) if self.tokenizer else None
+
         # TODO: interface to configure this
         self.sampler = {
             'temperature': 1.0,
@@ -84,6 +100,14 @@ class StepLLMCompletion(TransformStep):
             'max_tokens': 2048,
             'min_tokens': 10 
         }
+                
+        # Original logic if model_max isn't hit.
+        return super().pending_inputs(all_inputs, all_outputs)
+    
+    def run(self, id, input):
+        self.model = self.params.get('model')
+        self.tokenizer = self.params.get('tokenizer')
+        self.completion_tokenizer = build_tokenizer(self.tokenizer) if self.tokenizer else None
                         
         if not self.model: raise Exception(f"LLMCompletion {self.step} requires model parameter.")
                 
@@ -99,6 +123,19 @@ class StepLLMCompletion(TransformStep):
         answers = universal_llm_request(self.completion_tokenizer != None, self.model, messages, self.sampler, 1)        
         return answers[0], meta
 
+class StepJSONParser(TransformStep):
+    def run(self, id, input):
+        sidx = input.find('{')
+        eidx = input.rfind('}')
+        
+        try:
+            data = json.loads(input[sidx:eidx+1])
+        except:
+            print("JSON parse failed:", input)
+            data = None
+            
+        return data, {}
+    
 class StepLLMExtraction(StepLLMCompletion):
     def run(self, id, input):
         self.model = self.params.get('model')   
